@@ -1,0 +1,20 @@
+{
+  "FileVersion": 3,
+
+  "FriendlyName": "Kesh IRC Framework Plugin",
+  "Version": 1,
+  "VersionName": "1.0",
+  "Description": "And IRC framework that enables Unreal Engine 4 projects to connect to and use IRC servers.",
+  "Category": "Kesh.Network.IRC",
+  "CreatedBy": "Matthew 'Daekesh' Chapman'",
+  "CanContainContent": false,
+  "EnabledByDefault": false,
+
+  "Modules": [
+    {
+      "Name": "KeshIRCFrameworkPlugin",
+      "Type": "Runtime",
+      "LoadingPhase": "PreDefault"
+    }
+  ]
+}
