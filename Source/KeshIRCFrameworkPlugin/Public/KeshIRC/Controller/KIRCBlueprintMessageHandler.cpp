@@ -17,13 +17,13 @@ void UKIRCBlueprintMessageHandler::RegisterHandler( UKIRCClient* Client )
 {
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to register a command callback for a null client." ) );
+		KIRCLog( Error, "Trying to register a command callback for a null client." );
 		return;
 	}
 
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to register a command callback for a zero-length command." ) );
+		KIRCLog( Error, "Trying to register a command callback for a zero-length command." );
 		return;
 	}
 
@@ -33,7 +33,7 @@ void UKIRCBlueprintMessageHandler::RegisterHandler( UKIRCClient* Client )
 			Client->RemoveMessageHandler( Command, DelegateHandle );
 
 		else
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Registering a command callback with an already valid delegate handle which is unable to be removed." ) );
+			KIRCLog( Error, "Registering a command callback with an already valid delegate handle which is unable to be removed." );
 	}
 
 	this->Client = Client;
@@ -48,19 +48,19 @@ void UKIRCBlueprintMessageHandler::UnregisterHandler()
 {
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to unregister a command callback with a null client." ) );
+		KIRCLog( Error, "Trying to unregister a command callback with a null client." );
 		return;
 	}
 
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to unregister a command callback with a zero-length command." ) );
+		KIRCLog( Error, "Trying to unregister a command callback with a zero-length command." );
 		return;
 	}
 
 	if ( !DelegateHandle.IsValid() )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to unregister a command callback without a valid delegate handle." ) );
+		KIRCLog( Error, "Trying to unregister a command callback without a valid delegate handle." );
 		return;
 	}
 
@@ -76,7 +76,7 @@ void UKIRCBlueprintMessageHandler::CommandCallback( UKIRCUser* Source, const FSt
 {
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Zero-length command callback." ) );
+		KIRCLog( Error, "Zero-length command callback." );
 		return;
 	}
 

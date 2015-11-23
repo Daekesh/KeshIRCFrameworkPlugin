@@ -41,7 +41,7 @@ const FKIRCChannelUserInfo& UKIRCChannel::GetChannelUserInfo( UKIRCUser* User )
 	
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to get channel user info for a null user." ) );
+		KIRCLog( Error, "Trying to get channel user info for a null user." );
 		return DefaultReturnValue;
 	}
 
@@ -58,7 +58,7 @@ bool UKIRCChannel::HasUserLimit() const
 
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Cannot get server." ) );
+		KIRCLog( Error, "Cannot get server." );
 		return false;
 	}
 
@@ -77,7 +77,7 @@ bool UKIRCChannel::IsJoinKeySet() const
 
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Cannot get server." ) );
+		KIRCLog( Error, "Cannot get server." );
 		return false;
 	}
 
@@ -96,7 +96,7 @@ const TArray<FString>& UKIRCChannel::GetChannelModeListValues( UKIRCMode* Mode )
 
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to channel mode list for null mode." ) );
+		KIRCLog( Error, "Trying to channel mode list for null mode." );
 		return DefaultReturnValue;
 	}
 
@@ -111,13 +111,13 @@ void UKIRCChannel::UserJoined( UKIRCUser* User )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to join a channel." ) );
+		KIRCLog( Error, "Null user trying to join a channel." );
 		return;
 	}
 
 	if ( HasUser( User ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "User joining channel that they are already in." ) );
+		KIRCLog( Error, "User joining channel that they are already in." );
 		return;
 	}
 
@@ -130,13 +130,13 @@ void UKIRCChannel::UserLeft( UKIRCUser* User )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to leave a channel." ) );
+		KIRCLog( Error, "Null user trying to leave a channel." );
 		return;
 	}
 
 	if ( !HasUser( User ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "User leaving channel that they are not in." ) );
+		KIRCLog( Error, "User leaving channel that they are not in." );
 		return;
 	}
 
@@ -149,13 +149,13 @@ void UKIRCChannel::AddUnaryMode( UKIRCMode* Mode )
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to add a null unary mode." ) );
+		KIRCLog( Error, "Trying to add a null unary mode." );
 		return;
 	}
 
 	if ( IsChannelModeSet( Mode ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to add a unary mode that's already set." ) );
+		KIRCLog( Error, "Trying to add a unary mode that's already set." );
 		return;
 	}
 
@@ -167,13 +167,13 @@ void UKIRCChannel::RemoveUnaryMode( UKIRCMode* Mode )
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a null unary mode." ) );
+		KIRCLog( Error, "Trying to remove a null unary mode." );
 		return;
 	}
 
 	if ( !IsChannelModeSet( Mode ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to remove a unary mode that isn't set." ) );
+		KIRCLog( Error, "Trying to remove a unary mode that isn't set." );
 		return;
 	}
 
@@ -185,13 +185,13 @@ void UKIRCChannel::AddListModeEntry( UKIRCMode* Mode, const FString& Entry )
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to add a null list mode." ) );
+		KIRCLog( Error, "Trying to add a null list mode." );
 		return;
 	}
 
 	if ( Entry.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to add a zero length list mode value." ) );
+		KIRCLog( Error, "Trying to add a zero length list mode value." );
 		return;
 	}
 
@@ -210,19 +210,19 @@ void UKIRCChannel::RemoveListModeEntry( UKIRCMode* Mode, const FString& Entry )
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a null list mode." ) );
+		KIRCLog( Error, "Trying to remove a null list mode." );
 		return;
 	}
 
 	if ( Entry.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a zero length list mode value." ) );
+		KIRCLog( Error, "Trying to remove a zero length list mode value." );
 		return;
 	}
 
 	if ( !ModeLists.Contains( Mode ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to remove a list mode value that has none set." ) );
+		KIRCLog( Error, "Trying to remove a list mode value that has none set." );
 		return;
 	}
 
@@ -237,19 +237,19 @@ void UKIRCChannel::AddUserMode( UKIRCUser* User, UKIRCMode* Mode )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to add a mode to a null user." ) );
+		KIRCLog( Error, "Trying to add a mode to a null user." );
 		return;
 	}
 	
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying add a nul mode to a user." ) );
+		KIRCLog( Error, "Trying add a nul mode to a user." );
 		return;
 	}
 
 	if ( Users.Contains( User ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying add a mode to a user not in the channel." ) );
+		KIRCLog( Error, "Trying add a mode to a user not in the channel." );
 		return;
 	}
 
@@ -261,19 +261,19 @@ void UKIRCChannel::RemoveUserMode( UKIRCUser* User, UKIRCMode* Mode )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a mode to a null user." ) );
+		KIRCLog( Error, "Trying to remove a mode to a null user." );
 		return;
 	}
 
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying remove a nul mode to a user." ) );
+		KIRCLog( Error, "Trying remove a nul mode to a user." );
 		return;
 	}
 
 	if ( Users.Contains( User ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying remove a mode to a user not in the channel." ) );
+		KIRCLog( Error, "Trying remove a mode to a user not in the channel." );
 		return;
 	}
 

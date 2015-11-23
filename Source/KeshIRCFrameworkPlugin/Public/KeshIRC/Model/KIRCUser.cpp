@@ -117,13 +117,13 @@ bool UKIRCUser::JoinChannel( UKIRCChannel* Channel )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to join a null channel." ) );
+		KIRCLog( Error, "Tried to join a null channel." );
 		return false;
 	}
 
 	if ( Channels.Contains( Channel ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to join a a channel we're already in." ) );
+		KIRCLog( Error, "Tried to join a a channel we're already in." );
 		return false;
 	}
 
@@ -136,13 +136,13 @@ bool UKIRCUser::LeaveChannel( UKIRCChannel* Channel )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to leave a null channel." ) );
+		KIRCLog( Error, "Tried to leave a null channel." );
 		return false;
 	}
 
 	if ( !Channels.Contains( Channel ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to leave a channel we're not in." ) );
+		KIRCLog( Error, "Tried to leave a channel we're not in." );
 		return false;
 	}
 

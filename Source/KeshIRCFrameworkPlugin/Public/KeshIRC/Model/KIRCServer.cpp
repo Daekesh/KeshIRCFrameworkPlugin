@@ -7,6 +7,8 @@
 #include "KeshIRC/Model/KIRCMode.h"
 #include "KeshIRC/Controller/KIRCClient.h"
 #include "Runtime/Core/Public/Internationalization/Regex.h"
+#include "Runtime/Sockets/Public/Sockets.h"
+#include "Runtime/Sockets/Public/SocketSubsystem.h"
 #include "KeshIRC/Model/KIRCServer.h"
 
 
@@ -16,104 +18,122 @@ UKIRCServer::UKIRCServer( const class FObjectInitializer& ObjectInitializer )
 	Name = "";
 	Host = "";
 	Port = 0;
+	Password = "";
+	HostActual = "";
 	NetworkName = "";
+	Version = "";
+	Client = NULL;
 	State = EKIRCServerState::S_Disconnected;
+	HostResolver = NULL;
+	HostAddr.Reset();
+	Ticker = NULL;
+	Socket = NULL;
+	ReadBuffer = NULL;
 	Channels.Empty();
 	Users.Empty();
 	UserModes.Empty();
-	ChannelUnaryModes.Empty();
-	ChannelListModes.Empty();
-	ChannelUserModes.Empty();
+	ChannelModes.Empty();
 }
 
 
-UKIRCServer* UKIRCServer::CreateServer( UObject* Outer, const FString& ServerName, const FString& Host, int32 Port, 
-										const FString& Password, const FString& NickName, const FString& Ident, 
-										const FString& RealName, const TArray<FString>& AlternateNickNames,
-										TSubclassOf<UKIRCClient> ClientClass )
+UKIRCServer::~UKIRCServer()
+{
+	if ( Ticker != NULL )
+		delete Ticker;
+
+	if ( Socket != NULL )
+	{
+		Socket->Close();
+		delete Socket;
+	}
+}
+
+
+bool UKIRCServer::InitServer( const FString& ServerName, const FString& Host, int32 Port, const FString& Password )
 {
 	if ( Host.Len() < 3 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Invalid host." ) );
-		return NULL;
+		KIRCLog( Error, "Invalid host." );
+		return false;
 	}
 
 	if ( Port < 1 || Port > 65535 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Invalid port." ) );
-		return NULL;
+		KIRCLog( Error, "Invalid port." );
+		return false;
 	}
 
-	if ( NickName.Len() < 1 || NickName.Len() > 30 )
+	Name = ServerName;
+	this->Host = Host;
+	this->Port = Port;
+	this->Password = Password;
+
+	if ( Ticker != NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Invalid Nickname." ) );
-		return NULL;
+		delete Ticker;
+		KIRCLog( Warning, "Ticker still alive for some reason?" );
 	}
 
-	if ( Ident.Len() < 1 || Ident.Len() > 30 )
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get( PLATFORM_SOCKETSUBSYSTEM );
+
+	if ( SocketSub == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Invalid ident." ) );
-		return NULL;
+		KIRCLog( Error, "Unable to initialise socket subsystem." );
+		return false;
 	}
 
-	if ( ClientClass == NULL )
+	HostAddr = SocketSub->CreateInternetAddr();
+	HostAddr->SetIp( 0 );
+	HostAddr->SetPort( Port );
+	HostResolver = SocketSub->GetHostByName( TCHAR_TO_ANSI( *Host ) );
+	Ticker = new FKIRCServerTicket( this );
+	
+	return true;
+}
+
+
+void UKIRCServer::Reset()
+{
+	if ( HostResolver != NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null client class." ) );
-		return NULL;
+		delete HostResolver;
+		HostResolver = NULL;
 	}
+	
+	Disconnect();
 
-	if ( ClientClass->GetClassFlags() && CLASS_Abstract )
+	NetworkName = "";
+	Version = "";
+	HostActual = "";
+	Channels.Empty();
+	Users.Empty();
+	UserModes.Empty();
+	ChannelModes.Empty();
+	Settings.Empty();
+	
+	if ( HostAddr.IsValid() )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Abstract client class." ) );
-		return NULL;
+		int32 iIntIp = 0;
+		HostAddr->SetIp( iIntIp );
 	}
-
-	bool bIsTransient = false;
-
-	if ( Outer == NULL )
-	{
-		Outer = GetTransientPackage();
-		bIsTransient = true;
-	}
-
-	UKIRCServer* NewServer = NewObject<UKIRCServer>( Outer );
-
-	if ( NewServer == NULL )
-	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Failed to create server." ) );
-		return NULL;
-	}
-
-	NewServer->Name = ServerName;
-	NewServer->Host = Host;
-	NewServer->Port = Port;
-	NewServer->Password = Password;
-	NewServer->Client = NewObject<UKIRCClient>( NewServer, ClientClass );
-
-	if ( NewServer->Client == NULL )
-	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Failed to create client." ) );
-		return NULL;
-	}
-
-	NewServer->Client->InitClient( NewServer, NickName, AlternateNickNames, Ident, RealName );
-
-	if ( NewServer->Client->GetUser() == NULL )
-	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Failed to create client." ) );
-		return NULL;
-	}
-
-	if ( bIsTransient )
-		NewServer->AddToRoot();
-
-	return NewServer;
 }
 
 
 bool UKIRCServer::Connect()
 {
-	// TODO
+	KIRCLog( Log, "Connection initiated." );
+	// Create socket
+	ISocketSubsystem* SocketSub = ISocketSubsystem::Get( PLATFORM_SOCKETSUBSYSTEM );
+
+	if ( SocketSub == NULL )
+	{
+		KIRCLog( Error, "Unable to initialise socket subsystem." );
+		return false;
+	}
+
+	Socket = SocketSub->CreateSocket( NAME_Stream, "KIRC Server Connection" );
+	Socket->SetNonBlocking( true );
+
 	SetState( EKIRCServerState::S_Connecting );
 	return true;
 }
@@ -121,8 +141,17 @@ bool UKIRCServer::Connect()
 
 bool UKIRCServer::Disconnect()
 {
-	// TODO
+	KIRCLog( Log, "Disconnecting..." );
+
 	OnDisconnected( EKIRCServerDisconnectReason::R_ByUser );
+
+	if ( Socket != NULL )
+	{
+		Socket->Close();
+		delete Socket;
+		Socket = NULL;
+	}
+
 	return true;
 }
 
@@ -131,19 +160,19 @@ UKIRCChannel* UKIRCServer::GetChannelByName( const FString& Name ) const
 {
 	if ( Name.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a zero-length channel name." ) );
+		KIRCLog( Error, "Trying to get a zero-length channel name." );
 		return NULL;
 	}
 
 	if ( !UKIRCChannel::HasChannelPrefix( Name ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a channel without channel prefix." ) );
+		KIRCLog( Error, "Trying to get a channel without channel prefix." );
 		return NULL;
 	}
 
 	if ( Name.Len() == 1 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a channel with only channel prefix." ) );
+		KIRCLog( Error, "Trying to get a channel with only channel prefix." );
 		return NULL;
 	}
 
@@ -155,19 +184,19 @@ UKIRCChannel* UKIRCServer::EnsureChannel( const FString& Name )
 {
 	if ( Name.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a zero-length channel name." ) );
+		KIRCLog( Error, "Trying to get a zero-length channel name." );
 		return NULL;
 	}
 
 	if ( !UKIRCChannel::HasChannelPrefix( Name ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a channel without channel prefix." ) );
+		KIRCLog( Error, "Trying to get a channel without channel prefix." );
 		return NULL;
 	}
 
 	if ( Name.Len() == 1 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a channel with only channel prefix." ) );
+		KIRCLog( Error, "Trying to get a channel with only channel prefix." );
 		return NULL;
 	}
 
@@ -188,13 +217,13 @@ UKIRCUser* UKIRCServer::GetUserByName( const FString& Name ) const
 {
 	if ( Name.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a zero-length user name." ) );
+		KIRCLog( Error, "Trying to get a zero-length user name." );
 		return NULL;
 	}
 
 	if ( UKIRCChannel::HasChannelPrefix( Name ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a user with a channel prefix." ) );
+		KIRCLog( Error, "Trying to get a user with a channel prefix." );
 		return NULL;
 	}
 
@@ -206,13 +235,13 @@ UKIRCUser* UKIRCServer::EnsureUser( const FString& Name, const FString& Ident, c
 {
 	if ( Name.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a zero-length user name." ) );
+		KIRCLog( Error, "Trying to get a zero-length user name." );
 		return NULL;
 	}
 
 	if ( UKIRCChannel::HasChannelPrefix( Name ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to get a user with a channel prefix." ) );
+		KIRCLog( Error, "Trying to get a user with a channel prefix." );
 		return NULL;
 	}
 
@@ -233,19 +262,19 @@ void UKIRCServer::RenameUser( UKIRCUser* User, const FString& NewName )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to rename a null user." ) );
+		KIRCLog( Error, "Trying to rename a null user." );
 		return;
 	}
 
 	if ( NewName.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to rename a user to a zero-length name." ) );
+		KIRCLog( Error, "Trying to rename a user to a zero-length name." );
 		return;
 	}
 
 	if ( !Users.Contains( User->GetName() ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to remove a user not in the map." ) );
+		KIRCLog( Error, "Trying to remove a user not in the map." );
 		return;
 	}
 
@@ -259,7 +288,7 @@ void UKIRCServer::RemoveUser( UKIRCUser* User )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a null user." ) );
+		KIRCLog( Error, "Trying to remove a null user." );
 		return;
 	}
 
@@ -271,49 +300,11 @@ void UKIRCServer::RemoveChannel( UKIRCChannel* Channel )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to remove a null channel." ) );
+		KIRCLog( Error, "Trying to remove a null channel." );
 		return;
 	}
 
 	Channels.Remove( Channel->GetName() );
-}
-
-
-UKIRCMode* UKIRCServer::GetChannelMode( const FString& Mode ) const
-{
-	UKIRCMode* ModeObj = GetChannelUserMode( Mode );
-
-	if ( ModeObj != NULL )
-		return ModeObj;
-
-	ModeObj = GetChannelListMode( Mode );
-
-	if ( ModeObj != NULL )
-		return ModeObj;
-
-	ModeObj = GetChannelUnaryMode( Mode );
-
-	return ModeObj;
-}
-
-
-TArray<UKIRCMode*> UKIRCServer::GetAvailableChannelModes() const
-{
-	TArray<UKIRCMode*> ChannelUnaryModeList;
-	ChannelUnaryModes.GenerateValueArray( ChannelUnaryModeList );
-
-	TArray<UKIRCMode*> ChannelListModeList;
-	ChannelListModes.GenerateValueArray( ChannelListModeList );
-
-	TArray<UKIRCMode*> ChannelUserModeList;
-	ChannelUserModes.GenerateValueArray( ChannelUserModeList );
-
-	TArray<UKIRCMode*> ChannelModeList;
-	ChannelModeList += ChannelUnaryModeList;
-	ChannelModeList += ChannelListModeList;
-	ChannelModeList += ChannelUserModeList;
-
-	return ChannelModeList;
 }
 
 
@@ -337,13 +328,13 @@ void UKIRCServer::ParseLine( const FString& Line )
 			return;
 		}
 
-		Command( "PONG " + Line.RightChop( 5 ) );
+		Send( "PONG " + Line.RightChop( 5 ) );
 		return;
 	}
 
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Cannot process messages without a client." ) );
+		KIRCLog( Error, "Cannot process messages without a client." );
 		return;
 	}
 
@@ -387,9 +378,49 @@ void UKIRCServer::ParseLine( const FString& Line )
 }
 
 
-void UKIRCServer::Command( const FString& Command )
+bool UKIRCServer::Send( const FString& Command )
 {
-	// TODO
+	if ( Socket == NULL )
+	{
+		KIRCLog( Error, "Attempting to send a command to a null socket." );
+		return false;
+	}
+
+	FString CleanCommand = "";
+
+	switch ( Socket->GetConnectionState() )
+	{
+		case SCS_NotConnected:
+			KIRCLog( Error, "Attempting to send a command to an unconnected socket." );
+			return false;
+
+		case SCS_ConnectionError:
+			KIRCLog( Error, "Attempting to send a command to an errored socket." );
+			return false;
+
+		case SCS_Connected:
+			CleanCommand = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().Command, Command );
+
+			if ( CleanCommand.Len() > MaxCommandLength )
+			{
+				KIRCLog( Error, "Command length too long." );
+				return false;
+			}
+
+			int32 iSent = 0;
+			uint8 buffer[ MaxCommandLength + 2 ];
+
+			for ( int32 i = 0; i < CleanCommand.Len(); ++i )
+				buffer[ i ] = static_cast< uint8 >( CleanCommand[ i ] );
+
+			buffer[ CleanCommand.Len() ] = '\r';
+			buffer[ CleanCommand.Len() + 1 ] = '\n';
+
+			Socket->Send( buffer, CleanCommand.Len() + 2, iSent );
+			return true;
+	}	
+
+	return false;
 }
 
 
@@ -416,5 +447,197 @@ void UKIRCServer::OnConnectionError( const FString& Reason )
 	SetState( EKIRCServerState::S_Error );
 
 	if ( Client != NULL )
+	{
 		Client->OnConnectionErrorDelegate.Broadcast( this, Reason );
+		Client->OnServerDisconnectedDelegate.Broadcast( this, EKIRCServerDisconnectReason::R_Network );
+	}
+}
+
+
+UKIRCMode* UKIRCServer::AddUserMode( const FString& ModeCharacter )
+{
+	if ( ModeCharacter.Len() != 1 )
+	{
+		KIRCLog( Error, "Tried to add a user mode that wasn't 1 character long." );
+		return NULL;
+	}
+
+	UKIRCMode* NewMode = NewObject<UKIRCMode>( this );
+	NewMode->InitMode( ModeCharacter, EKIRCModeType::T_User );
+
+	UserModes[ ModeCharacter ] = NewMode;
+
+	return NewMode;
+}
+
+
+UKIRCMode* UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType )
+{
+	if ( ModeCharacter.Len() != 1 )
+	{
+		KIRCLog( Error, "Tried to add a user mode that wasn't 1 character long." );
+		return NULL;
+	}
+
+	UKIRCMode* NewMode = NewObject<UKIRCMode>( this );
+	NewMode->InitMode( ModeCharacter, ModeType );
+
+	switch ( ModeType )
+	{
+		// New object should be immediately gc'd!
+		default:
+		case EKIRCModeType::T_None:
+		case EKIRCModeType::T_User:
+			KIRCLog( Error, "Invalid channel mode type." );
+			return NULL;
+
+		case EKIRCModeType::T_Channel_Unary:
+		case EKIRCModeType::T_Channel_Param:
+		case EKIRCModeType::T_Channel_List:
+		case EKIRCModeType::T_Channel_User:
+			ChannelModes[ ModeCharacter ] = NewMode;
+	}
+
+	return NewMode;
+}
+
+
+void UKIRCServer::Tick()
+{
+	switch ( State )
+	{
+		default:
+		case EKIRCServerState::S_Error:
+			return;
+
+		// We've not yet connected, so need to try to resolve the address, if we have to.
+		case EKIRCServerState::S_Disconnected:
+			if ( HostResolver == NULL )
+				return;
+
+			if ( !HostResolver->IsComplete() )
+				return;
+
+			if ( HostResolver->GetErrorCode() == SE_NO_ERROR )
+			{
+				uint32 iIntIp;
+				HostResolver->GetResolvedAddress().GetIp( iIntIp );
+				HostAddr->SetIp( iIntIp );
+				KIRCLog( Log, "Host resolved." );
+			}
+
+			else
+			{
+				KIRCLog( Error, "Unable to resolve host address." );
+				SetState( EKIRCServerState::S_Error );
+			}
+
+			delete HostResolver;
+			HostResolver = NULL;
+			return;
+
+		// Wait for the ip to be resolved and connect the socket.
+		case EKIRCServerState::S_Connecting:
+			if ( Socket == NULL )
+				return;
+
+			switch ( Socket->GetConnectionState() )
+			{
+				case SCS_NotConnected:
+					uint32 iInetIp;
+					HostAddr->GetIp( iInetIp );
+
+					// Wait for the host to be resolved.
+					if ( iInetIp == 1 )
+						return;
+
+					KIRCLog( Log, "Connecting..." );
+
+					if ( !Socket->Connect( *HostAddr ) )
+					{
+						KIRCLog( Error, "Unable to connect to server." );
+						Socket->Close();
+						delete Socket;
+						Socket = NULL;
+						OnConnectionError( "Socket failed to connect." );
+						return;
+					}
+
+					ReadBuffer = "";
+					OnConnected();
+					return;
+
+				// Should never reach this point, but just in case.
+				case SCS_ConnectionError:
+					KIRCLog( Error, "Unable to connect to server." );
+					Socket->Close();
+					delete Socket;
+					Socket = NULL;
+					OnConnectionError( "Socket failed to connect." );
+					return;
+
+				// Should never reach this point, but just in case.
+				case SCS_Connected:
+					OnConnected();
+					return;
+			}
+
+			return;			
+
+		// Read data from the socket into the buffer.
+		case EKIRCServerState::S_Connected:
+			if ( Socket == NULL )
+			{
+				KIRCLog( Error, "Null socket in connected state." );
+				OnConnectionError( "Socket is null." );
+				return;
+			}
+
+			switch ( Socket->GetConnectionState() )
+			{
+				case SCS_NotConnected:
+					KIRCLog( Error, "Socket no longer connected." );
+					OnConnectionError( "Socket no longer connected." );
+					Socket->Close();
+					delete Socket;
+					Socket = NULL;
+					return;
+
+				case SCS_ConnectionError:
+					KIRCLog( Error, "Socket error." );
+					OnConnectionError( "Socket error." );
+					Socket->Close();
+					delete Socket;
+					Socket = NULL;
+					return;
+
+				case SCS_Connected:
+					int32 iRead;
+					Socket->Recv( SocketBuffer, sizeof( SocketBuffer ), iRead, ESocketReceiveFlags::None );
+
+					if ( iRead == 0 )
+						return;
+
+					for ( int32 i = 0; i < iRead; ++i )
+					{
+						TCHAR Char = static_cast< TCHAR >( SocketBuffer[ i ] );
+
+						if ( Char == '\r' )
+							continue;
+
+						if ( Char == '\n' )
+						{
+							ParseLine( ReadBuffer );
+							ReadBuffer = "";
+							continue;
+						}
+
+						ReadBuffer += Char;
+					}
+
+					return;
+			}
+
+			return;
+	}
 }

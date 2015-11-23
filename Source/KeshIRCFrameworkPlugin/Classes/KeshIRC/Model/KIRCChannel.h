@@ -6,16 +6,6 @@
 #include "KeshIRC/Model/KIRCObject.h"
 #include "KIRCChannel.generated.h"
 
-USTRUCT( BlueprintType )
-struct FKIRCModeListContainer
-{
-	GENERATED_BODY()
-
-	UPROPERTY( Category = "KeshIRC | Model | Mode", VisibleInstanceOnly, BlueprintReadOnly )
-	TArray<FString> List;
-
-};
-
 
 /**
 * Representation of a channel on an IRC server.

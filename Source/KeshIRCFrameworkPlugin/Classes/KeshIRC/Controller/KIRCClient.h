@@ -17,6 +17,13 @@ class KESHIRCFRAMEWORKPLUGIN_API UKIRCClient : public UObject
 
 public:
 
+	UKIRCClient( const class FObjectInitializer& ObjectInitializer );
+
+	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	virtual bool InitClient( const FString& ServerName, const FString& Host, int32 Port, const FString& Password, 
+							 const FString& NickName, const FString& Ident, const FString& RealName,
+							 const TArray<FString>& AlternateNickNames );
+
 	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
 	UKIRCServer* GetServer() const { return Server; }
 
@@ -73,10 +80,10 @@ public:
 	FKIRCServerConnected OnServerConnectedDelegate;
 	FKIRCServerDisconnected OnServerDisconnectedDelegate;
 	FKIRCConnectionError OnConnectionErrorDelegate;
+	FKIRCMOTDComplete OnMOTDCompleteDelegate;
 	FKIRCUserRegistered OnRegisteredDelegate;
 	FKIRCUserModeChange OnUserModeChangedDelegate;
 	FKIRCChannelInvite OnInvitedDelegate;
-	FKIRCMOTDComplete OnMOTDCompleteDelegate;
 	FKIRCUserMessage OnUserMessageDelegate;
 	FKIRCChannelJoin OnUserJoinedChannelDelegate;
 	FKIRCChannelPart OnUserLeftChannelDelegate;
@@ -174,9 +181,9 @@ public:
 	virtual bool Quit( const FString& Message );
 
 	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
-	virtual void Command( const FString& Command, UKIRCCommandResponseScanner* Scanner );
+	virtual bool SendCommand( const FString& Command, UKIRCCommandResponseScanner* ResponseScanner = NULL );
 
-	virtual bool Command( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass = NULL,
+	virtual bool SendCommandCallback( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass = NULL,
 						  UObject* CallbackObject = NULL, FKIRCCommandResponseCallbackDelegate CallbackFunction = NULL );
 
 
@@ -186,11 +193,13 @@ public:
 
 	virtual void HandleMessage( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
-	virtual FDelegateHandle AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
-
 	virtual FDelegateHandle AddMessageHandler( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
+	virtual FDelegateHandle AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
+
 	virtual void RemoveMessageHandler( const FString& Command, FDelegateHandle Handle );
+
+	virtual void RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle );
 
 	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
 	static UKIRCBlueprintMessageHandler* CreateMessageHandler( UKIRCClient* Client, TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
@@ -201,6 +210,17 @@ public:
 
 	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
 	static FString NumericToString( int32 Numeric );
+
+
+	/*****************
+	 * Miscellaneous *
+	 *****************/
+
+	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	static FString CleanString( const FString& DisallowedCharactes, const FString& String, bool bAllowUpperOctet = true );
+
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	static const FKIRCInvalidCharacters& GetInvalidCharacters();
 
 protected:
 
@@ -248,10 +268,6 @@ protected:
 	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly, BlueprintReadWrite )
 	TArray<UKIRCBlueprintMessageHandler*> BlueprintMessageHandlers;
 
-	UKIRCClient( const class FObjectInitializer& ObjectInitializer );
-
-	virtual void InitClient( UKIRCServer* Server, const FString& NickName, const TArray<FString>& AlternateNickNames, const FString& Ident, const FString& RealName );
-
 	virtual void Register();
 
 	virtual bool SendToServer( const FString& Command );
@@ -263,8 +279,27 @@ protected:
 
 	virtual void SetupMessageHandlers();
 
-	// Set network name
+	// Nick negotiation
+	FDelegateHandle RegistrationNickErrorNoneGiven;
+	FDelegateHandle RegistrationNickErrorNickInUse;
+	FDelegateHandle RegistrationNickErrorUnavailableResource;
+	FDelegateHandle RegistrationNickErrorErroneousNick;
+	FDelegateHandle RegistrationNickErrorNickCollision;
+	FDelegateHandle RegistrationNickErrorRestricted;
+
+	void OnNickNegotiationFatalHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnNickNegotaitionNextNickHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+
+	// Network info
 	void OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnNetworkInfoHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnServerSettingHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+
+	// MOTD
+	void OnMOTDStartHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnMOTDLineHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
 	// Trigger events
 	void OnMessageHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );

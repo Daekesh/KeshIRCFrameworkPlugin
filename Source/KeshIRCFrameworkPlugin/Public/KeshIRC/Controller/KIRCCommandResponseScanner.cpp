@@ -19,7 +19,7 @@ void UKIRCCommandResponseScanner::StartScan( UKIRCClient* Client )
 {
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to start command response scanning with a null client." ) );
+		KIRCLog( Error, "Tried to start command response scanning with a null client." );
 		return;
 	}
 
@@ -50,7 +50,7 @@ void UKIRCCommandResponseScanner::CommandCallback( UKIRCUser* Source, const FStr
 {
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Zero-length command callback." ) );
+		KIRCLog( Error, "Zero-length command callback." );
 		return;
 	}
 
@@ -81,7 +81,7 @@ FDelegateHandle UKIRCCommandResponseScanner::RegisterCallback( const FString& Co
 {
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to register a command response scanner callback with a null client." ) );
+		KIRCLog( Error, "Tried to register a command response scanner callback with a null client." );
 		return FDelegateHandle();
 	}
 
@@ -100,7 +100,7 @@ void UKIRCCommandResponseScanner::UnregisterCallback( const FString& Command, FD
 {
 	if ( Client == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to unregister a command response scanner callback with a null client." ) );
+		KIRCLog( Error, "Tried to unregister a command response scanner callback with a null client." );
 		return;
 	}
 

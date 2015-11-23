@@ -5,6 +5,9 @@
 #include "KeshIRC/KIRCTypes.h"
 #include "KIRCServer.generated.h"
 
+class FResolveInfo;
+class FInternetAddr;
+class FSocket;
 
 /**
 * Representation of an IRC server connection.
@@ -20,13 +23,6 @@ public:
 	 * Server Functions *
 	 ********************/
 
-	// Factory method
-	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
-	static UKIRCServer* CreateServer( UObject* Outer, const FString& ServerName, const FString& Host, int32 Port,
-									  const FString& Password, const FString& NickName, const FString& Ident, 
-									  const FString& RealName, const TArray<FString>& AlternateNickNames,
-									  TSubclassOf<UKIRCClient> ClientClass );
-
 	// Initiate the connection to the server.
 	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
 	virtual bool Connect();
@@ -35,7 +31,11 @@ public:
 	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
 	virtual bool Disconnect();
 
-	
+	// Resets the server so it can be connected again.
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	virtual void Reset();
+
+
 	/******************
 	 * Server Details *
 	 ******************/
@@ -55,7 +55,19 @@ public:
 	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
 	const FString& GetNetworkName() const { return NetworkName; }
 
-	void SetNetworkName( const FString& NewName ) { NetworkName = NewName; }
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	const FString& GetHostActual() const { return HostActual; }
+
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	const FString& GetVersion() const { return Version; }
+
+	// Setting name is converted to upper case
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	bool HasSetting( const FString& Setting ) const { return Settings.Contains( Setting.ToUpper() ); }
+
+	// Setting name is converted to upper case
+	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	const FString& GetSetting( const FString& Setting ) const { return Settings[ Setting.ToUpper() ]; }
 
 	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
 	EKIRCServerState GetState() const { return State; }
@@ -139,67 +151,21 @@ public:
 	}
 
 	// Returns the mode object for the given mode character.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | Unary", BlueprintCallable )
-	UKIRCMode* GetChannelUnaryMode( const FString& Mode ) const { return ChannelUnaryModes[ Mode ]; }
-
-	// Returns true if the given channel mode is available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | Unary", BlueprintCallable )
-	bool IsChannelUnaryModeAvailable( const FString& Mode ) const { return ChannelUnaryModes.Contains( Mode ); }
-
-	// Returns a list (expensive) of the channel modes available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | Unary", BlueprintCallable )
-	TArray<UKIRCMode*> GetAvailableChannelUnaryModes() const
-	{
-		TArray<UKIRCMode*> ChannelModeList;
-		ChannelUnaryModes.GenerateValueArray( ChannelModeList );
-		return ChannelModeList;
-	}
-
-	// Returns the mode object for the given mode character.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | List", BlueprintCallable )
-	UKIRCMode* GetChannelListMode( const FString& Mode ) const { return ChannelListModes[ Mode ]; }
-
-	// Returns true if the given channel mode is available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | List", BlueprintCallable )
-	bool IsChannelListModeAvailable( const FString& Mode ) const { return ChannelListModes.Contains( Mode ); }
-
-	// Returns a list (expensive) of the channel modes available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | List", BlueprintCallable )
-	TArray<UKIRCMode*> GetAvailableChannelListModes() const
-	{
-		TArray<UKIRCMode*> ChannelListModeList;
-		ChannelListModes.GenerateValueArray( ChannelListModeList );
-		return ChannelListModeList;
-	}
-
-	// Returns the mode object for the given mode character.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | User", BlueprintCallable )
-	UKIRCMode* GetChannelUserMode( const FString& Mode ) const { return ChannelUserModes[ Mode ]; }
-
-	// Returns true if the given channel user mode is available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | User", BlueprintCallable )
-	bool IsChannelUserModeAvailable( const FString& Mode ) const { return ChannelUserModes.Contains( Mode ); }
-
-	// Returns a list (expensive) of the channel user modes available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | User", BlueprintCallable )
-	TArray<UKIRCMode*> GetAvailableChannelUserModes() const
-	{
-		TArray<UKIRCMode*> ChannelUserModeUser;
-		ChannelUserModes.GenerateValueArray( ChannelUserModeUser );
-		return ChannelUserModeUser;
-	}
-
-	// Returns the mode object for the given mode character.
 	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel", BlueprintCallable )
-	UKIRCMode* GetChannelMode( const FString& Mode ) const;	
+	UKIRCMode* GetChannelMode( const FString& Mode ) const { return ChannelModes[ Mode ]; }
 
 	// Returns true if the given channel mode is available on the server.
 	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel", BlueprintCallable )
-	bool IsChannelModeAvailable( const FString& Mode ) const { return GetChannelMode( Mode ) != NULL; }
+	bool IsChannelModeAvailable( const FString& Mode ) const { return ChannelModes.Contains( Mode ); }
 
 	// Returns a list (expensive) of the channel modes available on the server.
-	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel", BlueprintCallable )
-	TArray<UKIRCMode*> GetAvailableChannelModes() const;
+	UFUNCTION( Category = "KeshIRC | Model | Server | Modes | Channel | User", BlueprintCallable )
+		TArray<UKIRCMode*> GetAvailableChannelModes() const
+	{
+		TArray<UKIRCMode*> ChannelModesArray;
+		ChannelModes.GenerateValueArray( ChannelModesArray );
+		return ChannelModesArray;
+	}
 
 
 	/*****************
@@ -207,13 +173,28 @@ public:
 	 *****************/
 
 	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
-	virtual void Command( const FString& Command );
+	virtual bool Send( const FString& Command );
 
 public:
 
 	static const int32 MaxCommandLength = 256;
 
 protected:
+
+	friend class UKIRCClient;
+
+	class FKIRCServerTicket : public FTickableGameObject
+	{		
+		UKIRCServer* Server;
+	public:
+		FKIRCServerTicket( UKIRCServer* Server ) { this->Server = Server; }		
+		virtual bool IsTickableWhenPaused() const override { return true; }
+		virtual bool IsTickableInEditor() const override { return true; }
+		virtual bool IsTickable() const override { return Server != NULL; }
+		virtual void Tick( float DeltaTime ) { Server->Tick(); }
+		virtual TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT( FKIRCServerTicket, STATGROUP_Tickables ); }
+	};
+
 
 	UPROPERTY( Category = "KeshIRC | Model | Server", VisibleInstanceOnly )
 	FString Name; 
@@ -231,6 +212,12 @@ protected:
 	FString NetworkName;
 
 	UPROPERTY( Category = "KeshIRC | Model | Server", VisibleInstanceOnly )
+	FString Version;
+
+	UPROPERTY( Category = "KeshIRC | Model | Server", VisibleInstanceOnly )
+	FString HostActual;
+
+	UPROPERTY( Category = "KeshIRC | Model | Server", VisibleInstanceOnly )
 	EKIRCServerState State;
 
 	UPROPERTY( Category = "KeshIRC | Model | Server", VisibleInstanceOnly )
@@ -246,17 +233,38 @@ protected:
 	TMap<FString, UKIRCMode*> UserModes;
 
 	UPROPERTY()
-	TMap<FString, UKIRCMode*> ChannelUnaryModes;
+	TMap<FString, UKIRCMode*> ChannelModes;
 
 	UPROPERTY()
-	TMap<FString, UKIRCMode*> ChannelListModes;
+	TMap<FString, FString> Settings;
 
-	UPROPERTY()
-	TMap<FString, UKIRCMode*> ChannelUserModes;
+	FKIRCServerTicket* Ticker;
+	FResolveInfo* HostResolver;
+	TSharedPtr<FInternetAddr> HostAddr;
+	FSocket* Socket;
+	uint8 SocketBuffer[ 1024 ];
+	FString ReadBuffer;
 
 	UKIRCServer( const class FObjectInitializer& ObjectInitializer );
+	~UKIRCServer();
 
+	bool InitServer( const FString& ServerName, const FString& Host, int32 Port, const FString& Password );
+
+	void SetNetworkName( const FString& NewName ) { NetworkName = NewName; }
+
+	void SetVersion( const FString& NewVersion ) { Version = NewVersion; }
+
+	void SetHostActual( const FString& NewHost ) { HostActual = NewHost; }
+
+	void SetSetting( const FString& Setting, const FString& Value ) { Settings[ Setting ] = Value; }
+	
 	virtual void SetState( EKIRCServerState State ) { this->State = State; }
+
+	virtual void Tick();
+
+	UKIRCMode* AddUserMode( const FString& ModeCharacter );
+
+	UKIRCMode* AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType );
 
 	virtual void ParseLine( const FString& Line );
 

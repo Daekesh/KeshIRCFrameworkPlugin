@@ -14,11 +14,52 @@
 namespace KeshIRCFramework
 {
 	FKIRCNumerics Numerics;
+	FKIRCInvalidCharacters InvalidCharacters;
 }
 
-#define Cmd( Format, ... ) Command( FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
-#define CmdRes( ScannerClass, Format, ... ) Command( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass )
-#define CmdResCB( ScannerClass, Object, Function, Format, ... ) Command( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, ScannerClass, Object )
+#define Cmd( Format, ... ) SendCommand( FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
+#define CmdScan( ScannerClass, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass )
+#define CmdScanCB( ScannerClass, Object, Function, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, ScannerClass, Object )
+
+
+FString UKIRCClient::CleanString( const FString& DisallowedCharactes, const FString& String, bool bAllowUpperOctet )
+{
+	FString Clean = "";
+
+	for ( int32 i = 0; i < String.Len(); ++i )
+	{
+		// Only octets allowed
+		if ( String[ i ] > 255 )
+			continue;
+
+		if ( !bAllowUpperOctet && String[ i ] > 127 )
+			continue;
+
+		bool bAllowed = true;
+
+		for ( int32 j = 0; i < DisallowedCharactes.Len(); ++j )
+		{
+			if ( String[ i ] != DisallowedCharactes[ j ] )
+				continue;
+
+			bAllowed = false;
+			break;
+		}
+
+		if ( !bAllowed )
+			continue;
+
+		Clean += String[ i ];
+	}
+
+	return Clean;
+}
+
+
+const FKIRCInvalidCharacters& UKIRCClient::GetInvalidCharacters()
+{
+	return KeshIRCFramework::InvalidCharacters;
+}
 
 
 UKIRCClient::UKIRCClient( const class FObjectInitializer& ObjectInitializer )
@@ -37,27 +78,59 @@ UKIRCClient::UKIRCClient( const class FObjectInitializer& ObjectInitializer )
 }
 
 
-void UKIRCClient::InitClient( UKIRCServer* Server, const FString& NickName, const TArray<FString>& AlternateNickNames, const FString& Ident, const FString& RealName )
+bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, int32 Port, const FString& Password,
+							  const FString& NickName, const FString& Ident, const FString& RealName,
+							  const TArray<FString>& AlternateNickNames )
 {
+	FString CleanNickName = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().NickName, NickName );
+
+	if ( CleanNickName.Len() < 1 || CleanNickName.Len() > 30 )
+	{
+		KIRCLog( Error, "Invalid Nickname." );
+		return false;
+	}
+
+	FString CleanIdent = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().Ident, Ident );
+
+	if ( CleanIdent.Len() < 1 || CleanIdent.Len() > 30 )
+	{
+		KIRCLog( Error, "Invalid ident." );
+		return false;
+	}
+
+	Server = NewObject<UKIRCServer>( this );
+
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to init client with null server" ) );
-		return;
+		KIRCLog( Error, "Failed to create server." );
+		return false;
 	}
-	
-	this->Server = Server;
-	User = Server->EnsureUser( NickName, Ident, RealName );
+
+	Server->InitServer( ServerName, Host, Port, Password );
+
+	User = Server->EnsureUser( CleanNickName, CleanIdent, UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().RealName, RealName ) );
 
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Failed to create client user." ) );
-		return;
+		KIRCLog( Error, "Failed to create client user." );
+		Server = NULL;
+		return false;
 	}
 
-	NickNameList.Add( NickName );
-	NickNameList += AlternateNickNames;
+	NickNameList.Add( CleanNickName );
+
+	for ( const FString& AltNickName : AlternateNickNames )
+	{
+		FString CleanedAltNickName = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().NickName, AltNickName );
+
+		if ( CleanedAltNickName.Len() < 1 || CleanedAltNickName.Len() > 30 )
+			continue;
+
+		NickNameList.Add( CleanedAltNickName );
+	}
 
 	SetupMessageHandlers();
+	return true;
 }
 
 
@@ -65,7 +138,7 @@ bool UKIRCClient::HasModeString( const FString& Mode ) const
 {
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to get user mode with null server." ) );
+		KIRCLog( Error, "Tried to get user mode with null server." );
 		return false;
 	}
 	
@@ -128,24 +201,23 @@ bool UKIRCClient::SendToServer( const FString& Command )
 {
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to send command with null server." ) );
+		KIRCLog( Error, "Tried to send command with null server." );
 		return false;
 	}
 
 	if ( Server->GetState() != EKIRCServerState::S_Connected )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to send a command with an unconnected server." ) );
+		KIRCLog( Error, "Tried to send a command with an unconnected server." );
 		return false;
 	}
 
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to send zero-length command." ) );
+		KIRCLog( Error, "Tried to send zero-length command." );
 		return false;
 	}
 
-	Server->Command( Command );
-	return true;
+	return Server->Send( Command );
 }
 
 
@@ -160,25 +232,25 @@ void UKIRCClient::Register()
 {
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to register with a null server." ) );
+		KIRCLog( Error, "Tried to register with a null server." );
 		return;
 	}
 
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to register with a null user." ) );
+		KIRCLog( Error, "Tried to register with a null user." );
 		return;
 	}
 
 	if ( Server->GetState() != EKIRCServerState::S_Connected )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to register with an unconnected server." ) );
+		KIRCLog( Error, "Tried to register with an unconnected server." );
 		return;
 	}
 
 	if ( !bRegistered )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to register when already registered." ) );
+		KIRCLog( Error, "Tried to register when already registered." );
 		return;
 	}
 	
@@ -213,35 +285,23 @@ FString UKIRCClient::NumericToString( int32 Numeric )
 }
 
 
-FDelegateHandle UKIRCClient::AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
-{
-	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
-	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to add an out of range numeric handler." ) );
-		return FDelegateHandle();
-	}
-
-	return AddMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
-}
-
-
 FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to add a handler for a zero length command." ) );
+		KIRCLog( Error, "Tried to add a handler for a zero length command." );
 		return FDelegateHandle();
 	}
 
 	if ( CallbackObject == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to add a callback on a null objcet." ) );
+		KIRCLog( Error, "Tried to add a callback on a null objcet." );
 		return FDelegateHandle();
 	}
 
 	if ( CallbackFunction == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to add a callback with a null function." ) );
+		KIRCLog( Error, "Tried to add a callback with a null function." );
 		return FDelegateHandle();
 	}
 
@@ -257,17 +317,29 @@ FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject*
 }
 
 
+FDelegateHandle UKIRCClient::AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
+{
+	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
+	{
+		KIRCLog( Error, "Tried to add an out of range numeric handler." );
+		return FDelegateHandle();
+	}
+
+	return AddMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
+}
+
+
 void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle Handle )
 {
 	if ( Command.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to remove a handler for a zero length command." ) );
+		KIRCLog( Error, "Tried to remove a handler for a zero length command." );
 		return;
 	}
 
 	if ( !Handle.IsValid() )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to remove an invalid delegate handle." ) );
+		KIRCLog( Error, "Tried to remove an invalid delegate handle." );
 		return;
 	}
 
@@ -275,7 +347,7 @@ void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle 
 
 	if ( !MessageHandlers.Contains( CommandUpper ) )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to remove a handler for command that isn't being handled." ) );
+		KIRCLog( Error, "Tried to remove a handler for command that isn't being handled." );
 		return;
 	}
 
@@ -286,18 +358,30 @@ void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle 
 }
 
 
+void UKIRCClient::RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle )
+{
+	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
+	{
+		KIRCLog( Error, "Tried to remove an out of range numeric handler." );
+		return;
+	}
+
+	RemoveMessageHandler( NumericToString( Numeric ), Handle );
+}
+
+
 UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Client, TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
 																 bool bAutoRegister, bool bStoreReference )
 {
 	if ( MessageHandlerClass == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to create a blueprint message handler with a null class." ) );
+		KIRCLog( Error, "Tried to create a blueprint message handler with a null class." );
 		return NULL;
 	}
 
 	if ( MessageHandlerClass->GetClassFlags() & CLASS_Abstract )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to create a blueprint message handler with an abstract class." ) );
+		KIRCLog( Error, "Tried to create a blueprint message handler with an abstract class." );
 		return NULL;
 	}
 
@@ -305,13 +389,13 @@ UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Cl
 
 	if ( CDO == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Unable to fetch message handler default object." ) );
+		KIRCLog( Error, "Unable to fetch message handler default object." );
 		return NULL;
 	}
 
 	if ( CDO->GetCommand().Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Tried to create a message handler with no command set. Set the command in the class default properties." ) );
+		KIRCLog( Error, "Tried to create a message handler with no command set. Set the command in the class default properties." );
 		return NULL;
 	}
 
@@ -319,7 +403,7 @@ UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Cl
 
 	if ( NewMessageHandler == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Failed to create message handler." ) );
+		KIRCLog( Error, "Failed to create message handler." );
 		return NULL;
 	}
 
@@ -335,7 +419,26 @@ UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Cl
 
 void UKIRCClient::SetupMessageHandlers()
 {
-	AddMessageHandler( GetNumerics().ReplyNone, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNetworkWelcomeHandler ) );
+	// Nickname negotiation handlers
+	RegistrationNickErrorNoneGiven = AddMessageHandler( GetNumerics().ErrorNoNicknameGiven, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCClient::OnNickNegotiationFatalHandler ) );
+	RegistrationNickErrorNickInUse = AddMessageHandler( GetNumerics().ErrorNickNameInUse, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RegistrationNickErrorUnavailableResource = AddMessageHandler( GetNumerics().ErrorUnAvailResource, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RegistrationNickErrorErroneousNick = AddMessageHandler( GetNumerics().ErrorErroneusNickname, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RegistrationNickErrorNickCollision = AddMessageHandler( GetNumerics().ErrorNickCollision, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RegistrationNickErrorRestricted = AddMessageHandler( GetNumerics().ErrorRestricted, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+
+	// Network info
+	AddMessageHandler( GetNumerics().ReplyWelcome, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNetworkWelcomeHandler ) );
+	AddMessageHandler( GetNumerics().ReplyMyInfo, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNetworkInfoHandler ) );
+	AddMessageHandler( GetNumerics().ReplyMap, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnServerSettingHandler ) );
+
+	// MOTD
+	AddMessageHandler( GetNumerics().ReplyMotdStart, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMOTDStartHandler ) );
+	AddMessageHandler( GetNumerics().ReplyMotd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMOTDLineHandler ) );
+	AddMessageHandler( GetNumerics().ReplyMotdEnd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMOTDEndHandler ) );
+	AddMessageHandler( GetNumerics().ErrorNoMotd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNoMOTDHandler ) );
+
+	// General operation
 	AddMessageHandler( "PRIVMSG", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMessageHandler ) );
 	AddMessageHandler( "NOTICE", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMessageHandler ) );
 	AddMessageHandler( "NICK", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickChangeHandler ) );
@@ -349,14 +452,97 @@ void UKIRCClient::SetupMessageHandlers()
 }
 
 
+void UKIRCClient::OnNickNegotiationFatalHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	KIRCLog( Error, "Critical error negotiating nickname." );
+
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Unable to disconnect from null server." );
+		return;
+	}
+
+	Server->Disconnect();
+}
+
+
+void UKIRCClient::OnNickNegotaitionNextNickHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	KIRCLog( Warning, "Failed to set nickname. Trying next available." );
+
+	if ( User == NULL )
+	{
+		KIRCLog( Error, "Tried to scan for new nickname with null user." );
+
+		if ( Server == NULL )
+		{
+			KIRCLog( Error, "Unable to disconnect from null server." );
+			return;
+		}
+
+		Server->Disconnect();
+		return;
+	}
+	
+	int32 iNickIndex = INDEX_NONE;
+
+	for ( int32 i = 0; i < NickNameList.Num(); ++i )
+	{
+		if ( User->GetName() != NickNameList[ i ] )
+			continue;
+
+		iNickIndex = i;
+		break;
+	}
+
+	if ( iNickIndex == INDEX_NONE )
+		User->SetName( NickNameList[ 0 ] );
+
+	else
+	{
+		++iNickIndex;
+
+		if ( iNickIndex < NickNameList.Num() )
+			User->SetName( NickNameList[ iNickIndex ] );
+
+		else
+		{
+			KIRCLog( Warning, "Unable to use any of the given nicknames; generating random one." );
+			User->SetName( "KIRC" + FString::FromInt( rand() ) );
+		}
+	}	
+
+	Cmd( "NICK %s", *User->GetName() );
+}
+
+
 void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received network welcome with null server." ) );
+		KIRCLog( Error, "Received network welcome with null server." );
 		return;
 	}
 
+	// Remove nick negotiation handlers
+	if ( RegistrationNickErrorNoneGiven.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorNoNicknameGiven, RegistrationNickErrorNoneGiven );
+
+	if ( RegistrationNickErrorNickInUse.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorNickNameInUse, RegistrationNickErrorNickInUse );
+
+	if ( RegistrationNickErrorUnavailableResource.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorUnAvailResource, RegistrationNickErrorUnavailableResource );
+
+	if ( RegistrationNickErrorErroneousNick.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorErroneusNickname, RegistrationNickErrorErroneousNick );
+	
+	if ( RegistrationNickErrorNickCollision.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorNickCollision, RegistrationNickErrorNickCollision );
+	
+	if ( RegistrationNickErrorRestricted.IsValid() )
+		RemoveMessageHandler( GetNumerics().ErrorRestricted, RegistrationNickErrorRestricted );
+	
 	FString MessageChop = Message;
 	
 	if ( MessageChop.StartsWith( "Welcome to the " ) )
@@ -374,7 +560,7 @@ void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Com
 	// What?
 	if ( iLastSpace == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received zero length welcome message." ) );
+		KIRCLog( Error, "Received zero length welcome message." );
 		return;
 	}
 
@@ -385,17 +571,132 @@ void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Com
 }
 
 
+void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Network info received with a null server." );
+		return;
+	}
+
+	if ( Params.Num() < 5 )
+	{
+		KIRCLog( Error, "Not enough params in network info." );
+		return;
+	}
+
+	Server->SetHostActual( Params[ 0 ] );
+	Server->SetVersion( Params[ 1 ] );
+
+	for ( int32 i = 0; i < Params[ 2 ].Len(); ++i )
+		Server->AddUserMode( "" + Params[ 2 ][ i ] );
+
+	for ( int32 i = 0; i < Params[ 3 ].Len(); ++i )
+	{
+		const TCHAR& ModeChar = Params[ 3 ][ i ];
+		bool bIsParamMode = false;
+
+		for ( int32 j = 0; j < Params[ 4 ].Len(); ++j )
+		{
+			const TCHAR& ParamChar = Params[ 4 ][ j ];
+
+			if ( ModeChar != ParamChar )
+				continue;
+
+			bIsParamMode = true;
+			break;
+		}
+
+		if ( bIsParamMode )
+		{
+			// Hard core the 2 non-list param chars (key, limit.)
+			if ( ModeChar == 'k' || ModeChar == 'l' )
+			{
+				Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_Param );
+				continue;
+			}
+
+			// Hardcore the 3 user modes (ops, halfops/helper, voice.)
+			if ( ModeChar == 'o' || ModeChar == 'h' || ModeChar == 'v' )
+			{
+				Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_User );
+				continue;
+			}
+
+			// Otherwise we're a list mode (ban, etc.)
+			Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_List );
+			continue;
+		}
+
+		Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_Unary );
+	}
+}
+
+
+void UKIRCClient::OnServerSettingHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Network settings received with a null server." );
+		return;
+	}
+
+	for ( FString Param : Params )
+	{
+		int32 iEquals = INDEX_NONE;
+		Param.FindChar( '=', iEquals );
+
+		if ( iEquals == INDEX_NONE )
+			Server->SetSetting( Param, "" );
+
+		else
+			Server->SetSetting( Param.Left( iEquals ), Param.Mid( iEquals + 1 ) );
+	}
+}
+
+
+void UKIRCClient::OnMOTDStartHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	MOTD.SetNum( 0 );
+}
+
+
+void UKIRCClient::OnMOTDLineHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	MOTD.Add( Message );
+}
+
+
+void UKIRCClient::OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
+
+	if ( !bRegistered )
+		OnRegister();
+}
+
+
+void UKIRCClient::OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	MOTD.SetNum( 0 );
+	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
+
+	if ( !bRegistered )
+		OnRegister();
+}
+
+
 void UKIRCClient::OnMessageHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received message with no target." ) );
+		KIRCLog( Error, "Received message with no target." );
 		return;
 	}
 
 	if ( Message.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received zero length message." ) );
+		KIRCLog( Error, "Received zero length message." );
 		return;
 	}
 
@@ -423,19 +724,19 @@ void UKIRCClient::OnNickChangeHandler( UKIRCUser* Source, const FString& Command
 {
 	if ( Source == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to change nickname." ) );
+		KIRCLog( Error, "Null user trying to change nickname." );
 		return;
 	}
 
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Nickname change but no nickname provided." ) );
+		KIRCLog( Error, "Nickname change but no nickname provided." );
 		return;
 	}
 
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to rename a user on a null server." ) );
+		KIRCLog( Error, "Trying to rename a user on a null server." );
 	}
 
 	Server->RenameUser( Source, Params[ 0 ] );
@@ -447,13 +748,13 @@ void UKIRCClient::OnJoinHandler( UKIRCUser* Source, const FString& Command, cons
 {
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received join with no target." ) );
+		KIRCLog( Error, "Received join with no target." );
 		return;
 	}
 
 	if ( Source == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to join a channel (server?)." ) );
+		KIRCLog( Error, "Null user trying to join a channel (server?)" );
 		return;
 	}
 
@@ -461,7 +762,7 @@ void UKIRCClient::OnJoinHandler( UKIRCUser* Source, const FString& Command, cons
 
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "User trying to join a null channel." ) );
+		KIRCLog( Error, "User trying to join a null channel." );
 		return;
 	}
 
@@ -474,13 +775,13 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 {
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received part with no target." ) );
+		KIRCLog( Error, "Received part with no target." );
 		return;
 	}
 
 	if ( Source == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to join a channel (server?)." ) );
+		KIRCLog( Error, "Null user trying to join a channel (server?)." );
 		return;
 	}
 
@@ -488,7 +789,7 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "User trying to join a null channel." ) );
+		KIRCLog( Error, "User trying to join a null channel." );
 		return;
 	}
 
@@ -498,10 +799,11 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 	{
 		if ( Server == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to rename a channel on a null server." ) );
+			KIRCLog( Error, "Trying to rename a channel on a null server." );
 		}
 
-		Server->RemoveChannel( Channel );
+		else
+			Server->RemoveChannel( Channel );
 	}
 
 	OnUserLeftChannelDelegate.Broadcast( Channel, Source, Message );
@@ -512,19 +814,19 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 {
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Mode change received with no target." ) );
+		KIRCLog( Error, "Mode change received with no target." );
 		return;
 	}
 
 	if ( Params.Num() == 1 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Mode change received with no modes." ) );
+		KIRCLog( Error, "Mode change received with no modes." );
 		return;
 	}
 
 	if ( Server == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to change mode on a null server." ) );
+		KIRCLog( Error, "Trying to change mode on a null server." );
 		return;
 	}
 
@@ -534,7 +836,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 		if ( Channel == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to ensure channel object." ) );
+			KIRCLog( Error, "Unable to ensure channel object." );
 			return;
 		}
 
@@ -564,7 +866,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 			if ( Mode == NULL )
 			{
-				UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unknown mode in mode change." ) );
+				KIRCLog( Error, "Unknown mode in mode change." );
 				return;
 			}
 
@@ -573,7 +875,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				// All user mode changes require a param
 				if ( iCurrentParam == Params.Num() )
 				{
-					UE_LOG( LogKeshIRCFramework, Error, TEXT( "Not enough params in mode string." ) );
+					KIRCLog( Error, "Not enough params in mode string." );
 					return;
 				}
 
@@ -582,7 +884,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 				if ( Target == NULL )
 				{
-					UE_LOG( LogKeshIRCFramework, Error, TEXT( "Error ensuring user for mode change." ) );
+					KIRCLog( Error, "Error ensuring user for mode change." );
 					return;
 				}
 				
@@ -603,7 +905,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				// All list mode changes require a param
 				if ( iCurrentParam == Params.Num() )
 				{
-					UE_LOG( LogKeshIRCFramework, Error, TEXT( "Not enough params in mode string." ) );
+					KIRCLog( Error, "Not enough params in mode string." );
 					return;
 				}
 
@@ -624,7 +926,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					// Key always requires a param to be given
 					if ( iCurrentParam == Params.Num() )
 					{
-						UE_LOG( LogKeshIRCFramework, Error, TEXT( "Not enough params in mode string." ) );
+						KIRCLog( Error, "Not enough params in mode string." );
 						return;
 					}
 
@@ -653,13 +955,13 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 						// Limit only needs the param when it's added
 						if ( iCurrentParam == Params.Num() )
 						{
-							UE_LOG( LogKeshIRCFramework, Error, TEXT( "Not enough params in mode string." ) );
+							KIRCLog( Error, "Not enough params in mode string." );
 							return;
 						}
 
 						if ( !Params[ iCurrentParam ].IsNumeric() )
 						{
-							UE_LOG( LogKeshIRCFramework, Error, TEXT( "Limit param is not numeric." ) );
+							KIRCLog( Error, "Limit param is not numeric." );
 							return;
 						}
 
@@ -686,7 +988,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					{
 						if ( iCurrentParam == Params.Num() )
 						{
-							UE_LOG( LogKeshIRCFramework, Error, TEXT( "Not enough params in mode string." ) );
+							KIRCLog( Error, "Not enough params in mode string." );
 							return;
 						}
 
@@ -723,7 +1025,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 		if ( Channel == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to ensure channel object." ) );
+			KIRCLog( Error, "Unable to ensure channel object." );
 			return;
 		}
 
@@ -753,7 +1055,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 			if ( Mode == NULL )
 			{
-				UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unknown mode in mode change." ) );
+				KIRCLog( Error, "Unknown mode in mode change." );
 				return;
 			}
 
@@ -762,7 +1064,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 			{
 				if ( UserModes.Contains( Mode ) )
 				{
-					UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to add user mode that server user already has." ) );
+					KIRCLog( Error, "Trying to add user mode that server user already has." );
 					return;
 				}
 
@@ -773,7 +1075,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 			{
 				if ( !UserModes.Contains( Mode ) )
 				{
-					UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Trying to remove user mode that server does not have." ) );
+					KIRCLog( Error, "Trying to remove user mode that server does not have." );
 					return;
 				}
 
@@ -790,7 +1092,7 @@ void UKIRCClient::OnTopicChangeHandler( UKIRCUser* Source, const FString& Comman
 {
 	if ( Params.Num() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received topic change with no target." ) );
+		KIRCLog( Error, "Received topic change with no target." );
 		return;
 	}
 
@@ -798,7 +1100,7 @@ void UKIRCClient::OnTopicChangeHandler( UKIRCUser* Source, const FString& Comman
 
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to ensure channel object." ) );
+		KIRCLog( Error, "Unable to ensure channel object." );
 		return;
 	}
 
@@ -813,15 +1115,15 @@ void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, cons
 {
 	if ( Params.Num() < 2 )
 	{
-UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received kick with insufficient params." ) );
-return;
+		KIRCLog( Error, "Received kick with insufficient params." );
+		return;
 	}
 
 	UKIRCChannel* Channel = Server->EnsureChannel( Params[ 0 ] );
 
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to ensure channel object." ) );
+		KIRCLog( Error, "Unable to ensure channel object." );
 		return;
 	}
 
@@ -829,7 +1131,7 @@ return;
 
 	if ( Target == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to ensure user object." ) );
+		KIRCLog( Error, "Unable to ensure user object." );
 		return;
 	}
 
@@ -842,7 +1144,7 @@ void UKIRCClient::OnInviteHandler( UKIRCUser* Source, const FString& Command, co
 {
 	if ( Params.Num() < 2 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Received invite with insufficient params." ) );
+		KIRCLog( Error, "Received invite with insufficient params." );
 		return;
 	}
 
@@ -854,7 +1156,7 @@ void UKIRCClient::OnQuitHandler( UKIRCUser* Source, const FString& Command, cons
 {
 	if ( Source == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Null user trying to quit (server?)." ) );
+		KIRCLog( Error, "Null user trying to quit (server?)." );
 		return;
 	}
 
@@ -867,50 +1169,49 @@ void UKIRCClient::OnQuitHandler( UKIRCUser* Source, const FString& Command, cons
 }
 
 
-void UKIRCClient::Command( const FString& Command, UKIRCCommandResponseScanner* Scanner )
+bool UKIRCClient::SendCommand( const FString& Command, UKIRCCommandResponseScanner* ResponseScanner )
 {
-	if ( Scanner != NULL )
+	if ( ResponseScanner != NULL )
 	{
 		CommandScannerQueueLock.Lock();
-		CommandResponseScanners.Add( Scanner );
+		CommandResponseScanners.Add( ResponseScanner );
 
 		if ( CommandResponseScanners.Num() == 1 )
-			Scanner->StartScan( this );
+			ResponseScanner->StartScan( this );
 
 		CommandScannerQueueLock.Unlock();
 	}
 
-	SendToServer( Command.Left( UKIRCServer::MaxCommandLength ) + "\r\n" );
+	return SendToServer( Command.Left( UKIRCServer::MaxCommandLength ) );
 }
 
 
-bool UKIRCClient::Command( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass,
+bool UKIRCClient::SendCommandCallback( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass,
 						   UObject* CallbackObject, FKIRCCommandResponseCallbackDelegate CallbackFunction )
 {
-	UKIRCCommandResponseScanner* Scanner = NULL;
+	UKIRCCommandResponseScanner* ResponseScanner = NULL;
 
 	if ( ScannerClass != NULL )
 	{
 		if ( ScannerClass->GetClassFlags() & CLASS_Abstract )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to instantiate an abstract scanner class." ) );
+			KIRCLog( Error, "Tried to instantiate an abstract scanner class." );
 			return false;
 		}
 
-		Scanner = NewObject<UKIRCCommandResponseScanner>( this, ScannerClass );
+		ResponseScanner = NewObject<UKIRCCommandResponseScanner>( this, ScannerClass );
 
-		if ( Scanner == NULL )
+		if ( ResponseScanner == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Unable to instantiate scanner response class." ) );
+			KIRCLog( Error, "Unable to instantiate scanner response class." );
 			return false;
 		}
 
 		if ( CallbackObject != NULL && CallbackFunction != NULL )
-			Scanner->OnScanComplete.BindUObject( CallbackObject, CallbackFunction );
+			ResponseScanner->OnScanComplete.BindUObject( CallbackObject, CallbackFunction );
 	}
 
-	this->Command( Command, Scanner );
-	return true;
+	return this->SendCommand( Command, ResponseScanner );
 }
 
 
@@ -918,13 +1219,13 @@ bool UKIRCClient::Message( UKIRCObject* Object, EKIRCMessageType Type, const FSt
 {
 	if ( Object == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to send a message to a null object." ) );
+		KIRCLog( Error, "Trying to send a message to a null object." );
 		return false;
 	}
 
 	if ( Message.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Warning, TEXT( "Cannot send zero-length messages." ) );
+		KIRCLog( Error, "Cannot send zero-length messages." );
 		return false;
 	}
 
@@ -950,13 +1251,13 @@ bool UKIRCClient::UserMode( UKIRCMode* Mode, EKIRCModeChange Change )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "MyUser is null." ) );
+		KIRCLog( Error, "User is null." );
 		return false;
 	}
 
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to check if the server user has a null mode." ) );
+		KIRCLog( Error, "Trying to check if the server user has a null mode." );
 		return false;
 	}
 
@@ -968,7 +1269,7 @@ bool UKIRCClient::JoinChannel( UKIRCChannel* Channel, const FString& Key )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to join a null channel." ) );
+		KIRCLog( Error, "Tried to join a null channel." );
 		return false;
 	}
 
@@ -995,7 +1296,7 @@ bool UKIRCClient::PartChannel( UKIRCChannel* Channel, const FString& Message )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to part a null channel." ) );
+		KIRCLog( Error, "Tried to part a null channel." );
 		return false;
 	}
 
@@ -1011,13 +1312,13 @@ bool UKIRCClient::InviteUserToChannel( UKIRCUser* User, UKIRCChannel* Channel )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to invite a null user." ) );
+		KIRCLog( Error, "Tried to invite a null user." );
 		return false;
 	}
 
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to invite to a null channel." ) );
+		KIRCLog( Error, "Tried to invite to a null channel." );
 		return false;
 	}
 
@@ -1029,13 +1330,13 @@ bool UKIRCClient::KickUserFromChannel( UKIRCChannel* Channel, UKIRCUser* User, c
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to kick a user from a null channel." ) );
+		KIRCLog( Error, "Tried to kick a user from a null channel." );
 		return false;
 	}
 
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to kick a null user from a channel." ) );
+		KIRCLog( Error, "Tried to kick a null user from a channel." );
 		return false;
 	}
 
@@ -1060,7 +1361,7 @@ bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKI
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change a null mode." ) );
+		KIRCLog( Error, "Tried to change a null mode." );
 		return false;
 	}
 
@@ -1068,7 +1369,7 @@ bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKI
 	{
 		if ( Channel == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change channel mode of a null channel." ) );
+			KIRCLog( Error, "Tried to change channel mode of a null channel." );
 			return false;
 		}
 
@@ -1077,7 +1378,7 @@ bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKI
 			*Channel->GetName(),
 			*( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
 			*Mode->GetMode()
-			);
+		);
 
 		return false;
 	}
@@ -1100,7 +1401,7 @@ bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change a null mode." ) );
+		KIRCLog( Error, "Tried to change a null mode." );
 		return false;
 	}
 
@@ -1108,7 +1409,7 @@ bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode
 	{
 		if ( Channel == NULL )
 		{
-			UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change channel mode of a null channel." ) );
+			KIRCLog( Error, "Tried to change channel mode of a null channel." );
 			return false;
 		}
 
@@ -1118,7 +1419,7 @@ bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode
 			*( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
 			*Mode->GetMode(),
 			*Param
-			);
+		);
 
 		return false;
 	}
@@ -1146,13 +1447,13 @@ bool UKIRCClient::ChangeChannelUserMode( UKIRCChannel* Channel, UKIRCMode* Mode,
 {
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change a null mode." ) );
+		KIRCLog( Error, "Tried to change a null mode." );
 		return false;
 	}
 
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to change a channel user mode for a null user." ) );
+		KIRCLog( Error, "Tried to change a channel user mode for a null user." );
 		return false;
 	}
 
@@ -1169,7 +1470,7 @@ void UKIRCClient::FlushModeChanges( UKIRCChannel* Channel )
 			*Channel->GetName(),
 			*ModeChangeBuilderModeList,
 			*ModeChangeBuilderParamList
-			);
+		);
 	}
 
 	bBuildingModeString = false;
@@ -1183,7 +1484,7 @@ bool UKIRCClient::QueryObjectModes( UKIRCObject* Object )
 {
 	if ( Object == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to query the modes of a null object." ) );
+		KIRCLog( Error, "Tried to query the modes of a null object." );
 		return false;
 	}
 
@@ -1195,19 +1496,19 @@ bool UKIRCClient::QueryChannelModeList( UKIRCChannel* Channel, UKIRCMode* Mode )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to query the mode list of a null channel." ) );
+		KIRCLog( Error, "Tried to query the mode list of a null channel." );
 		return false;
 	}
 
 	if ( Mode == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to query the mode list of a null mode." ) );
+		KIRCLog( Error, "Tried to query the mode list of a null mode." );
 		return false;
 	}
 
 	if ( Mode->GetType() != EKIRCModeType::T_Channel_List )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to query the mode list of a non-list node." ) );
+		KIRCLog( Error, "Tried to query the mode list of a non-list node." );
 		return false;
 	}
 
@@ -1228,7 +1529,7 @@ bool UKIRCClient::QueryTopic( UKIRCChannel* Channel )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to query the topic of a null channel." ) );
+		KIRCLog( Error, "Tried to query the topic of a null channel." );
 		return false;
 	}
 
@@ -1240,7 +1541,7 @@ bool UKIRCClient::SetTopic( UKIRCChannel* Channel, const FString& Body )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to set the topic of a null channel." ) );
+		KIRCLog( Error, "Tried to set the topic of a null channel." );
 		return false;
 	}
 
@@ -1258,7 +1559,7 @@ bool UKIRCClient::UpdateChannelNameList( UKIRCChannel* Channel )
 {
 	if ( Channel == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Tried to set name list of a null channel." ) );
+		KIRCLog( Error, "Tried to set name list of a null channel." );
 		return false;
 	}
 
@@ -1290,7 +1591,7 @@ bool UKIRCClient::WhoIs( UKIRCUser* User )
 {
 	if ( User == NULL )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to whois a null user." ) );
+		KIRCLog( Error, "Trying to whois a null user." );
 		return false;
 	}
 
@@ -1302,7 +1603,7 @@ bool UKIRCClient::WhoWas( const FString& Name )
 {
 	if ( Name.Len() == 0 )
 	{
-		UE_LOG( LogKeshIRCFramework, Error, TEXT( "Trying to whowas a zero-length nickname." ) );
+		KIRCLog( Error, "Trying to whowas a zero-length nickname." );
 		return false;
 	}
 

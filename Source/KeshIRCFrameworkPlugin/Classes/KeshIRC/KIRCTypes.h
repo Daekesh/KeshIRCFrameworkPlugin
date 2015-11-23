@@ -6,6 +6,7 @@
 
 #undef NULL
 #define NULL nullptr
+#define KIRCLog( Level, Text ) UE_LOG( LogKeshIRCFramework, Level, TEXT( Text ) )
 
 class UKIRCServer;
 class UKIRCObject;
@@ -75,16 +76,16 @@ struct FKIRCChannelUserInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY( Category = "KeshIRC | Model | Model", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Channel." ) )
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Channel" ) )
 	UKIRCChannel* Channel;
 
-	UPROPERTY( Category = "KeshIRC | Model | Model", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User." ) )
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User" ) )
 	UKIRCUser* User;
 
-	UPROPERTY( Category = "KeshIRC | Model | Model", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Join Time." ) )
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Join Time" ) )
 	FDateTime JoinTime;
 		
-	UPROPERTY( Category = "KeshIRC | Model | Model", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User Modes." ) )
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User Modes" ) )
 	TArray<UKIRCMode*> Modes;
 
 };
@@ -132,6 +133,34 @@ enum class EKIRCServerState : uint8
 	S_Connected    UMETA( DisplayName = "Connected" ),
 	S_Error        UMETA( DisplayName = "Error" )
 };
+
+USTRUCT( BlueprintType )
+struct FKIRCModeListContainer
+{
+	GENERATED_BODY()
+
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	TArray<FString> List;
+};
+
+USTRUCT( BlueprintType )
+struct FKIRCInvalidCharacters
+{
+	GENERATED_BODY()
+
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	FString NickName = "\r\n\0 @!+%#\"$&*+";
+
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	FString Ident = "\r\n\0@!+%#\"$&*+";
+
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	FString RealName = "\r\n\0@!+%#\"$&*+";
+
+	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	FString Command = "\r\n";
+};
+
 
 DECLARE_MULTICAST_DELEGATE_OneParam( FKIRCServerConnected, UKIRCServer* )
 DECLARE_MULTICAST_DELEGATE_OneParam( FKIRCUserRegistered, UKIRCClient* )
