@@ -72,7 +72,7 @@ void UKIRCCommandResponseScanner::RegisterCallbacks()
 		FDelegateHandle Handle = RegisterCallback( Command, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCCommandResponseScanner::CommandCallback ) );
 
 		if ( Handle.IsValid() )
-			RegisteredCallbacks[ Command ] = Handle;
+			RegisteredCallbacks.Emplace( Command, Handle );
 	}
 }
 

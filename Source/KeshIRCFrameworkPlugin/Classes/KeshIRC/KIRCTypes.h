@@ -7,6 +7,7 @@
 #undef NULL
 #define NULL nullptr
 #define KIRCLog( Level, Text ) UE_LOG( LogKeshIRCFramework, Level, TEXT( Text ) )
+#define KIRCLogF( Level, Format, ... ) UE_LOG( LogKeshIRCFramework, Level, TEXT( Format ), __VA_ARGS__ )
 
 class UKIRCServer;
 class UKIRCObject;
@@ -42,6 +43,10 @@ class UKIRCBlueprintMessageHandler;
 #define MODE_CHANNEL_USER_OP "o"
 #define MODE_CHANNEL_USER_VOICE "v"
 
+#define TAG_USER_HALFOP '%'
+#define TAG_USER_OP '@'
+#define TAG_USER_VOICE '+'
+
 // Quakenet
 #define MODE_USER_DEAF "d"
 
@@ -76,16 +81,16 @@ struct FKIRCChannelUserInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Channel" ) )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Channel" ) )
 	UKIRCChannel* Channel;
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User" ) )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User" ) )
 	UKIRCUser* User;
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Join Time" ) )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "Join Time" ) )
 	FDateTime JoinTime;
 		
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User Modes" ) )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly, Meta = ( DisplayName = "User Modes" ) )
 	TArray<UKIRCMode*> Modes;
 
 };
@@ -104,7 +109,7 @@ enum class EKIRCServerDisconnectReason : uint8
 {
 	R_ByUser   UMETA( DisplayName = "By User" ),
 	R_ByServer UMETA( DisplayName = "By Server" ),
-	R_Network  UMETA( DisplayName = "Network Error" )
+	R_Socket   UMETA( DisplayName = "Network Error" )
 };
 
 UENUM( BlueprintType )
@@ -139,7 +144,7 @@ struct FKIRCModeListContainer
 {
 	GENERATED_BODY()
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly )
 	TArray<FString> List;
 };
 
@@ -148,16 +153,16 @@ struct FKIRCInvalidCharacters
 {
 	GENERATED_BODY()
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly )
 	FString NickName = "\r\n\0 @!+%#\"$&*+";
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly )
 	FString Ident = "\r\n\0@!+%#\"$&*+";
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly )
 	FString RealName = "\r\n\0@!+%#\"$&*+";
 
-	UPROPERTY( Category = "KeshIRC | Model | Channel", VisibleInstanceOnly, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Channel", VisibleInstanceOnly, BlueprintReadOnly )
 	FString Command = "\r\n";
 };
 
@@ -223,11 +228,13 @@ DECLARE_MULTICAST_DELEGATE_FiveParams( FKIRCChannelUserModeChange, UKIRCChannel*
 // New topic
 DECLARE_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelTopicChange, UKIRCChannel*, UKIRCUser*, const FString& )
 
-// Channel 
-// User name (not object) of the topic setter
-// Time topic was set
-// Topic string
-DECLARE_MULTICAST_DELEGATE_FourParams( FKIRCChannelTopicDiscover, UKIRCChannel*, const FString&, const FDateTime&, const FString& )
+// Channel
+// New topic
+DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCChannelBodyReceive, UKIRCChannel*, const FString& )
+
+// Channel
+// New topic
+DECLARE_MULTICAST_DELEGATE_SixParams( FKIRCChannelDetailsReceive, UKIRCChannel*, const FString&, FDateTime, const FString&, const FString&, const FString& )
 
 // Channel
 // Name/most list

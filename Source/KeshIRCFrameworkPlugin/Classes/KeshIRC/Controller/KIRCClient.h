@@ -10,7 +10,7 @@
 /**
 * Representation of an IRC server connection and the user using it.
 */
-UCLASS( Category = "KeshIRC | Client", Blueprintable, BlueprintType )
+UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCClient : public UObject
 {
 	GENERATED_BODY()
@@ -19,39 +19,39 @@ public:
 
 	UKIRCClient( const class FObjectInitializer& ObjectInitializer );
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	virtual bool InitClient( const FString& ServerName, const FString& Host, int32 Port, const FString& Password, 
 							 const FString& NickName, const FString& Ident, const FString& RealName,
 							 const TArray<FString>& AlternateNickNames );
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	UKIRCServer* GetServer() const { return Server; }
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	UKIRCUser* GetUser() const { return User; }
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool HasRegistered() const { return bRegistered; }
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	const TArray<FString>& GetMessageOfTheDay() const { return MOTD; }
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	const TArray<FString>& GetNickNameList() const { return NickNameList; }
 
 	// Returns the nodes currently set on the server user.
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	const TArray<UKIRCMode*>& GetUserModes() const { return UserModes; }
 
 	// Returns true if the server user has the given mode set.
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool HasMode( UKIRCMode* Mode ) const { return Mode == NULL ? false : UserModes.Contains( Mode ); }
 
 	// Returns true if the server user has the given mode set.
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool HasModeString( const FString& Mode ) const;
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool CanSeeUser( const FString& Name ) const 
 	{ 
 		if ( Server == NULL )
@@ -61,7 +61,7 @@ public:
 	}
 
 	// Channel must start with a valid channel prefix.
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool IsInChannel( const FString& Name ) const
 	{ 
 		if ( Server == NULL )
@@ -70,117 +70,117 @@ public:
 		return ( Server->GetChannelByName( Name ) != NULL );
 	}
 
-	UFUNCTION( Category = "KeshIRC | Client", BlueprintCallable )
-	const FString& GetCachedKeyForChannel( UKIRCChannel* Channel ) const;
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
+	const FString& GetCachedKeyForChannel( const FString& Channel ) const;
 
 	/**********
 	 * Events *
 	 **********/
 
-	FKIRCServerConnected OnServerConnectedDelegate;
-	FKIRCServerDisconnected OnServerDisconnectedDelegate;
+	FKIRCServerConnected OnConnectedDelegate;
+	FKIRCServerDisconnected OnDisconnectedDelegate;
 	FKIRCConnectionError OnConnectionErrorDelegate;
 	FKIRCMOTDComplete OnMOTDCompleteDelegate;
 	FKIRCUserRegistered OnRegisteredDelegate;
-	FKIRCUserModeChange OnUserModeChangedDelegate;
+	FKIRCUserModeChange OnUserModeDelegate;
 	FKIRCChannelInvite OnInvitedDelegate;
-	FKIRCUserMessage OnUserMessageDelegate;
-	FKIRCChannelJoin OnUserJoinedChannelDelegate;
-	FKIRCChannelPart OnUserLeftChannelDelegate;
-	FKIRCUserQuit OnUserQuitDelegate;
-	FKIRCChannelKick OnUserKickedFromChannelDelegate;
-	FKIRCChannelModeChange OnChannelModeChangedDelegate;
-	FKIRCChannelUserModeChange OnChannelUserModeChangedDelegate;
-	FKIRCChannelTopicChange OnChannelTopicChangedDelegate;
-	FKIRCChannelTopicDiscover OnChannelTopicDiscoveredDelegate;
-	FKIRCChannelNameList OnChannelNamesListReceivedDelegate;
+	FKIRCUserMessage OnMessageDelegate;
+	FKIRCChannelJoin OnJoinDelegate;
+	FKIRCChannelPart OnPartDelegate;
+	FKIRCUserQuit OnQuitDelegate;
+	FKIRCChannelKick OnKickDelegate;
+	FKIRCChannelModeChange OnChannelModeDelegate;
+	FKIRCChannelUserModeChange OnChannelUserModeDelegate;
+	FKIRCChannelTopicChange OnTopicChangeDelegate;
+	FKIRCChannelBodyReceive OnTopicReceiveDelegate;
+	FKIRCChannelDetailsReceive OnTopicDetailsDelegate;
 	FKIRCUserNickNameChange OnNickNameChangedDelegate;
 	FKIRCUnhandledNumeric OnUnhandledNumericDelegate;
-	FKIRCServerRaw OnUnhandledRawDelegate;
+	FKIRCServerRaw OnUnhandledRawMessageDelegate;
 
 
 	/************
 	 * Commands *
 	 ************/
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
-	virtual bool Message( UKIRCObject* Object, EKIRCMessageType Type, const FString& Message );
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
+	virtual bool Message( const FString& Target, EKIRCMessageType Type, const FString& Message );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool UserMode( UKIRCMode* Mode, EKIRCModeChange Change );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
-	virtual bool JoinChannel( UKIRCChannel* Channel, const FString& Key = "" );
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
+	virtual bool JoinChannel( const FString& Channel, const FString& Key = "" );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool PartChannel( UKIRCChannel* Channel, const FString& Message = "" );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool InviteUserToChannel( UKIRCUser* User, UKIRCChannel* Channel );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool KickUserFromChannel( UKIRCChannel* Channel, UKIRCUser* User, const FString& Message = "" );
 
 	// Call this to build up mode changes before flushing them.
 	// All mode changes must be for the same channel.
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual void StartModeChangeBuilder();
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange, const FString& Param );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool ChangeChannelUserMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange, UKIRCUser* User );
 
 	// Send built mode string.
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual void FlushModeChanges( UKIRCChannel* Channel );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool QueryObjectModes( UKIRCObject* Object );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool QueryChannelModeList( UKIRCChannel* Channel, UKIRCMode* Mode );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool ChangeNickname( const FString& NewName );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool QueryTopic( UKIRCChannel* Channel );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool SetTopic( UKIRCChannel* Channel, const FString& TopicBody );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool GetServerNameList();
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool ChannelList( const FString& Mask = "" );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool UpdateChannelNameList( UKIRCChannel* Channel );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool Who( const FString& Mask );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool WhoIs( UKIRCUser* User );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool WhoWas( const FString& Name );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool Away( const FString& Message );
 
 	virtual bool Return();
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool Quit( const FString& Message );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	virtual bool SendCommand( const FString& Command, UKIRCCommandResponseScanner* ResponseScanner = NULL );
 
 	virtual bool SendCommandCallback( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass = NULL,
@@ -201,14 +201,14 @@ public:
 
 	virtual void RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle );
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	static UKIRCBlueprintMessageHandler* CreateMessageHandler( UKIRCClient* Client, TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
 															   bool bAutoRegister = true, bool bStoreReference = true );
 
-	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Model|Server", BlueprintCallable )
 	static const FKIRCNumerics& GetNumerics();
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	static FString NumericToString( int32 Numeric );
 
 
@@ -216,56 +216,56 @@ public:
 	 * Miscellaneous *
 	 *****************/
 
-	UFUNCTION( Category = "KeshIRC | Client | Commands", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	static FString CleanString( const FString& DisallowedCharactes, const FString& String, bool bAllowUpperOctet = true );
 
-	UFUNCTION( Category = "KeshIRC | Model | Server", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Model|Server", BlueprintCallable )
 	static const FKIRCInvalidCharacters& GetInvalidCharacters();
 
 protected:
 
 	friend class UKIRCServer;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	TArray<FString> NickNameList;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	bool bRegistered;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	TArray<FString> MOTD;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	bool bBuildingModeString;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	EKIRCModeChange ModeChangeBuilderModeAction;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	FString ModeChangeBuilderModeList;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	FString ModeChangeBuilderParamList;
 
 	TMap<FString, FKIRCIncomingMessageHandler> MessageHandlers;
 	FCriticalSection CommandScannerQueueLock;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	UKIRCServer* Server;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	UKIRCUser* User;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	TArray<UKIRCMode*> UserModes;
 
 	UPROPERTY()
-	TMap<UKIRCChannel*, FString> ChannelKeyCache;
+	TMap<FString, FString> ChannelKeyCache;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	TArray<UKIRCCommandResponseScanner*> CommandResponseScanners;
 
-	UPROPERTY( Category = "KeshIRC | Client", VisibleInstanceOnly, BlueprintReadWrite )
+	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly, BlueprintReadWrite )
 	TArray<UKIRCBlueprintMessageHandler*> BlueprintMessageHandlers;
 
 	virtual void Register();
@@ -273,8 +273,8 @@ protected:
 	virtual bool SendToServer( const FString& Command );
 
 	void OnConnected();
-	void OnDisconnected();
-	void OnConnectionError( const FString& Reason );
+	void OnDisconnected( EKIRCServerDisconnectReason Reason );
+	void OnConnectionError( const FString& Error );
 	void OnRegister();
 
 	virtual void SetupMessageHandlers();
@@ -301,6 +301,11 @@ protected:
 	void OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 	void OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
+	// Channel join
+	void OnTopicBodyHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnTopicDetailsHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void OnNameListHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+
 	// Trigger events
 	void OnMessageHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 	void OnNickChangeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
@@ -317,6 +322,58 @@ protected:
 	 * BP Events *
 	 *************/
 
-	// Fill in later
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnConnectedEvent( UKIRCServer* ServerConnected );
 
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnDisconnectedEvent( UKIRCServer* ServerDisconnected, EKIRCServerDisconnectReason Reason );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnConnectionErrorEvent( UKIRCServer* ServerErrored, const FString& Error );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnMOTDCompleteEvent( const TArray<FString>& MOTDLines );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnRegisteredEvent();
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnUserModeEvent( UKIRCUser* UserChanged, UKIRCMode* Mode, EKIRCModeChange ModeChange );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnInvitedEvent( UKIRCUser* Source, const FString& InvitedTo );
+
+	// Channel is null if this is a private message to the client.
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnMessageEvent( UKIRCUser* Source, UKIRCChannel* Channel, EKIRCMessageType MessageType, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnJoinEvent( UKIRCChannel* Channel, UKIRCUser* UserJoining );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnPartEvent( UKIRCChannel* Channel, UKIRCUser* UserParting, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnQuitEvent( UKIRCUser* QuittingUser, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnKickEvent( UKIRCChannel* Channel, UKIRCUser* Source, UKIRCUser* Target, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnChannelModeEvent( UKIRCChannel* Channel, UKIRCUser* Souce, UKIRCMode* Mode, EKIRCModeChange ModeChange, const FString& Param );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnChannelUserModeEvent( UKIRCChannel* Channel, UKIRCUser* Source, UKIRCMode* Mode, EKIRCModeChange ModeChange, UKIRCUser* Target );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnTopicChangeEvent( UKIRCChannel* Channel, UKIRCUser* Source, const FString& Topic );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnNickNameChangedEvent( UKIRCUser* UserChangingNick, const FString& OldName );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnUnhandledNumericEvent( UKIRCServer* ServerNotHandling, int32 Numeric, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
+	void OnUnhandledRawMessageEvent( UKIRCServer* ServerNotHandling, const FString& Message );
 };

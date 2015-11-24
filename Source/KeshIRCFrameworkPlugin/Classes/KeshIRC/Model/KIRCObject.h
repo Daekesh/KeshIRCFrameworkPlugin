@@ -9,17 +9,17 @@
 /**
 * Base class of everything on irc. Channels and users.
 */
-UCLASS( Category = "KeshIRC | Model | Model", Blueprintable, BlueprintType )
+UCLASS( Category = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCObject : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UFUNCTION( Category = "KeshIRC | Model | Object", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Model|Object", BlueprintCallable )
 	UKIRCServer* GetServer() const;
 
-	UFUNCTION( Category = "KeshIRC | Model | Object", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Model|Object", BlueprintCallable )
 	const FString& GetName() const { return Name; }
 
 protected:
@@ -28,7 +28,7 @@ protected:
 	friend class UKIRCChannel;
 	friend class UKIRCUser;
 
-	UPROPERTY( Category = "KeshIRC | Model | Object", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Model|Object", VisibleInstanceOnly )
 	FString Name;
 
 	UKIRCObject( const class FObjectInitializer& ObjectInitializer );

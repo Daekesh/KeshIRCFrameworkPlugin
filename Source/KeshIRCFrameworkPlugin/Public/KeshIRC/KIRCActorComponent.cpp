@@ -2,6 +2,7 @@
 
 #include "Private/KeshIRCFrameworkPluginPrivatePCH.h"
 #include "KeshIRC/Controller/KIRCClient.h"
+#include "KeshIRC/Controller/KIRCBlueprintMessageHandler.h"
 #include "KeshIRC/KIRCActorComponent.h"
 
 
@@ -18,6 +19,7 @@ UKIRCActorComponent::UKIRCActorComponent( const class FObjectInitializer& Object
 	RealName = "";
 	ClientClass = UKIRCClient::StaticClass();
 	Client = NULL;
+	MessageHandlers.SetNum( 0 );
 }
 
 

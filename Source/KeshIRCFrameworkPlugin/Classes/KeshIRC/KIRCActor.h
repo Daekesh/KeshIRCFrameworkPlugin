@@ -18,12 +18,12 @@ public:
 
 	AKIRCActor( const class FObjectInitializer& ObjectInitializer );
 
-	UFUNCTION( Category = "KeshIRC | Actor", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Actor", BlueprintCallable )
 	UKIRCActorComponent* GetKeshIRCComponent() const;
 
 protected:
 
-	UPROPERTY( Category = "KeshIRC | Actor", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Actor", VisibleAnywhere, BlueprintReadOnly )
 	UKIRCActorComponent* IRCComponent;
 
 };

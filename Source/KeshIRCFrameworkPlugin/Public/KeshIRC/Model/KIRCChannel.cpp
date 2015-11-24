@@ -107,7 +107,7 @@ const TArray<FString>& UKIRCChannel::GetChannelModeListValues( UKIRCMode* Mode )
 }
 
 
-void UKIRCChannel::UserJoined( UKIRCUser* User )
+void UKIRCChannel::UserJoined( UKIRCUser* User, bool bZeroTime = false )
 {
 	if ( User == NULL )
 	{
@@ -121,7 +121,8 @@ void UKIRCChannel::UserJoined( UKIRCUser* User )
 		return;
 	}
 
-	Users[ User ] = { this, User, FDateTime::Now(), TArray<UKIRCMode*>() };
+	FKIRCChannelUserInfo CUI = { this, User, bZeroTime ? FDateTime( 0 ) : FDateTime::Now(), TArray<UKIRCMode*>() };
+	Users.Emplace( User, CUI );
 	User->JoinChannel( this );
 }
 
@@ -198,7 +199,7 @@ void UKIRCChannel::AddListModeEntry( UKIRCMode* Mode, const FString& Entry )
 	if ( !ModeLists.Contains( Mode ) )
 	{
 		FKIRCModeListContainer Entries;
-		ModeLists[ Mode ] = Entries;
+		ModeLists.Emplace( Mode, Entries );
 	}
 
 	ModeLists[ Mode ].List.Add( Entry );
@@ -247,7 +248,7 @@ void UKIRCChannel::AddUserMode( UKIRCUser* User, UKIRCMode* Mode )
 		return;
 	}
 
-	if ( Users.Contains( User ) )
+	if ( !Users.Contains( User ) )
 	{
 		KIRCLog( Error, "Trying add a mode to a user not in the channel." );
 		return;

@@ -37,7 +37,7 @@ FString UKIRCClient::CleanString( const FString& DisallowedCharactes, const FStr
 
 		bool bAllowed = true;
 
-		for ( int32 j = 0; i < DisallowedCharactes.Len(); ++j )
+		for ( int32 j = 0; j < DisallowedCharactes.Len(); ++j )
 		{
 			if ( String[ i ] != DisallowedCharactes[ j ] )
 				continue;
@@ -82,6 +82,8 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 							  const FString& NickName, const FString& Ident, const FString& RealName,
 							  const TArray<FString>& AlternateNickNames )
 {
+	KIRCLog( Log, "Initiating client." );
+
 	FString CleanNickName = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().NickName, NickName );
 
 	if ( CleanNickName.Len() < 1 || CleanNickName.Len() > 30 )
@@ -107,8 +109,10 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 	}
 
 	Server->InitServer( ServerName, Host, Port, Password );
+	Server->Client = this;
 
-	User = Server->EnsureUser( CleanNickName, CleanIdent, UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().RealName, RealName ) );
+	User = Server->EnsureUser( CleanNickName, CleanIdent, "" );
+	User->SetRealName( UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().RealName, RealName ) );
 
 	if ( User == NULL )
 	{
@@ -151,9 +155,15 @@ bool UKIRCClient::HasModeString( const FString& Mode ) const
 }
 
 
-const FString& UKIRCClient::GetCachedKeyForChannel( UKIRCChannel* Channel ) const
+const FString& UKIRCClient::GetCachedKeyForChannel( const FString& Channel ) const
 {
 	static FString NoKey = "";
+
+	if ( Channel.Len() < 2 || UKIRCChannel::HasChannelPrefix( Channel ) )
+	{
+		KIRCLog( Error, "Tried to get a cached key for a channel with an invalid name." );
+		return NoKey;
+	}
 
 	if ( !ChannelKeyCache.Contains( Channel ) )
 		return NoKey;
@@ -173,10 +183,14 @@ void UKIRCClient::HandleMessage( const FString& Line, UKIRCUser* Source, const F
 		{
 			int32 Numeric = FCString::Atoi( *Command );
 			OnUnhandledNumericDelegate.Broadcast( Server, Numeric, Params, Message );
+			OnUnhandledNumericEvent( Server, Numeric, Params, Message );
 		}
 
 		else
-			OnUnhandledRawDelegate.Broadcast( Server, Line );
+		{
+			OnUnhandledRawMessageDelegate.Broadcast( Server, Line );
+			OnUnhandledRawMessageEvent( Server, Line );
+		}
 	}
 
 	CommandScannerQueueLock.Lock();
@@ -223,8 +237,35 @@ bool UKIRCClient::SendToServer( const FString& Command )
 
 void UKIRCClient::OnConnected()
 {
-	OnServerConnectedDelegate.Broadcast( Server );
+	OnConnectedDelegate.Broadcast( Server );
+	OnConnectedEvent( Server );
+
 	Register();
+}
+
+
+void UKIRCClient::OnDisconnected( EKIRCServerDisconnectReason Reason )
+{
+	OnDisconnectedDelegate.Broadcast( Server, Reason );
+	OnDisconnectedEvent( Server, Reason );
+}
+
+
+void UKIRCClient::OnConnectionError( const FString& Error )
+{
+	OnConnectionErrorDelegate.Broadcast( Server, Error );
+	OnConnectionErrorEvent( Server, Error );
+
+	OnDisconnectedDelegate.Broadcast( Server, EKIRCServerDisconnectReason::R_Socket );
+	OnDisconnectedEvent( Server, EKIRCServerDisconnectReason::R_Socket );
+}
+
+
+void UKIRCClient::OnRegister()
+{
+	bRegistered = true;
+	OnRegisteredDelegate.Broadcast( this );
+	OnRegisteredEvent();
 }
 
 
@@ -248,7 +289,7 @@ void UKIRCClient::Register()
 		return;
 	}
 
-	if ( !bRegistered )
+	if ( bRegistered )
 	{
 		KIRCLog( Error, "Tried to register when already registered." );
 		return;
@@ -259,12 +300,6 @@ void UKIRCClient::Register()
 
 	Cmd( "USER %s 8 * :%s", *User->GetIdent(), *User->GetRealName() );
 	Cmd( "NICK %s", *User->GetName() );
-}
-
-
-void UKIRCClient::OnRegister()
-{
-	OnRegisteredDelegate.Broadcast( this );
 }
 
 
@@ -310,7 +345,7 @@ FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject*
 	if ( !MessageHandlers.Contains( CommandUpper ) )
 	{
 		FKIRCIncomingMessageHandler MessageHandler;
-		MessageHandlers[ CommandUpper ] = MessageHandler;
+		MessageHandlers.Emplace( CommandUpper, MessageHandler );
 	}
 
 	return MessageHandlers[ CommandUpper ].AddUObject( CallbackObject, CallbackFunction );
@@ -437,6 +472,11 @@ void UKIRCClient::SetupMessageHandlers()
 	AddMessageHandler( GetNumerics().ReplyMotd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMOTDLineHandler ) );
 	AddMessageHandler( GetNumerics().ReplyMotdEnd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMOTDEndHandler ) );
 	AddMessageHandler( GetNumerics().ErrorNoMotd, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNoMOTDHandler ) );
+
+	// Channel joining
+	AddMessageHandler( GetNumerics().ReplyTopic, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnTopicBodyHandler ) );
+	AddMessageHandler( GetNumerics().ReplyTopicSetBy, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnTopicDetailsHandler ) );
+	AddMessageHandler( GetNumerics().ReplyNamReply, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNameListHandler ) );
 
 	// General operation
 	AddMessageHandler( "PRIVMSG", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnMessageHandler ) );
@@ -586,10 +626,10 @@ void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Comman
 	}
 
 	Server->SetHostActual( Params[ 0 ] );
-	Server->SetVersion( Params[ 1 ] );
+	Server->SetVersion( Params[ 1 ] );	
 
 	for ( int32 i = 0; i < Params[ 2 ].Len(); ++i )
-		Server->AddUserMode( "" + Params[ 2 ][ i ] );
+		Server->AddUserMode( FString( 1, &Params[ 2 ][ i ] ) );
 
 	for ( int32 i = 0; i < Params[ 3 ].Len(); ++i )
 	{
@@ -612,23 +652,23 @@ void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Comman
 			// Hard core the 2 non-list param chars (key, limit.)
 			if ( ModeChar == 'k' || ModeChar == 'l' )
 			{
-				Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_Param );
+				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Param );
 				continue;
 			}
 
 			// Hardcore the 3 user modes (ops, halfops/helper, voice.)
 			if ( ModeChar == 'o' || ModeChar == 'h' || ModeChar == 'v' )
 			{
-				Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_User );
+				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_User );
 				continue;
 			}
 
 			// Otherwise we're a list mode (ban, etc.)
-			Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_List );
+			Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_List );
 			continue;
 		}
 
-		Server->AddChannelMode( "" + ModeChar, EKIRCModeType::T_Channel_Unary );
+		Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Unary );
 	}
 }
 
@@ -670,6 +710,7 @@ void UKIRCClient::OnMOTDLineHandler( UKIRCUser* Source, const FString& Command, 
 void UKIRCClient::OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
+	OnMOTDCompleteEvent( MOTD );
 
 	if ( !bRegistered )
 		OnRegister();
@@ -680,6 +721,7 @@ void UKIRCClient::OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, co
 {
 	MOTD.SetNum( 0 );
 	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
+	OnMOTDCompleteEvent( MOTD );
 
 	if ( !bRegistered )
 		OnRegister();
@@ -700,22 +742,63 @@ void UKIRCClient::OnMessageHandler( UKIRCUser* Source, const FString& Command, c
 		return;
 	}
 
+	UKIRCChannel* Channel = NULL;
+
+	if ( UKIRCChannel::HasChannelPrefix( Params[ 0 ] ) )
+		Channel = Server->GetChannelByName( Params[ 0 ] );
+
 	if ( Command == "PRIVMSG" )
 	{
-		if ( Message[ 0 ] != '\1' )
-			OnUserMessageDelegate.Broadcast( Source, Server->GetChannelByName( Params[ 0 ] ), EKIRCMessageType::T_Message, Message );
+		if ( Message.Len() >= 2 && Message[ 0 ] == '\1' || Message[ Message.Len() - 1 ] == '\1' )
+		{
+			OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Emote, Message.Mid( 1, Message.Len() - 2 ) );
+			OnMessageEvent( Source, Channel, EKIRCMessageType::T_Emote, Message.Mid( 1, Message.Len() - 2 ) );
+			
+			if ( Source != NULL )
+				Source->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Emote, Message.Mid( 1, Message.Len() - 2 ) );
 
-		else if ( Message.Len() > 2 )
-			OnUserMessageDelegate.Broadcast( Source, Server->GetChannelByName( Params[ 0 ] ), EKIRCMessageType::T_Emote, Message.Mid( 1, Message.Len() - 2 ) );
+			if ( Channel != NULL )
+				Channel->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Emote, Message.Mid( 1, Message.Len() - 2 ) );
+		}
+
+		else
+		{
+			OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Message, Message );
+			OnMessageEvent( Source, Channel, EKIRCMessageType::T_Message, Message );
+
+			if ( Source != NULL )
+				Source->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Message, Message );
+
+			if ( Channel != NULL )
+				Channel->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Message, Message );
+		}
 	}
 
 	else if ( Command == "NOTICE" )
 	{
-		if ( Message[ 0 ] != '\1' )
-			OnUserMessageDelegate.Broadcast( Source, Server->GetChannelByName( Params[ 0 ] ), EKIRCMessageType::T_Notice, Message );
+		if ( Message.Len() >= 2 && Message[ 0 ] == '\1' || Message[ Message.Len() - 1 ] == '\1' )
+		{
+			OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_CTCP, Message.Mid( 1, Message.Len() - 2 ) );
+			OnMessageEvent( Source, Channel, EKIRCMessageType::T_CTCP, Message.Mid( 1, Message.Len() - 2 ) );
 
-		else if( Message.Len() > 2 )
-			OnUserMessageDelegate.Broadcast( Source, Server->GetChannelByName( Params[ 0 ] ), EKIRCMessageType::T_CTCP, Message.Mid( 1, Message.Len() - 2 ) );
+			if ( Source != NULL )
+				Source->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_CTCP, Message.Mid( 1, Message.Len() - 2 ) );
+
+			if ( Channel != NULL )
+				Channel->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_CTCP, Message.Mid( 1, Message.Len() - 2 ) );
+		}
+
+		else
+		{
+			OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Notice, Message );
+			OnMessageEvent( Source, Channel, EKIRCMessageType::T_Notice, Message );
+
+			if ( Source != NULL )
+				Source->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Notice, Message );
+
+			if ( Channel != NULL )
+				Channel->OnMessageDelegate.Broadcast( Source, Channel, EKIRCMessageType::T_Notice, Message );
+		}
 	}
 }
 
@@ -728,7 +811,7 @@ void UKIRCClient::OnNickChangeHandler( UKIRCUser* Source, const FString& Command
 		return;
 	}
 
-	if ( Params.Num() == 0 )
+	if ( Message.Len() == 0 )
 	{
 		KIRCLog( Error, "Nickname change but no nickname provided." );
 		return;
@@ -737,10 +820,15 @@ void UKIRCClient::OnNickChangeHandler( UKIRCUser* Source, const FString& Command
 	if ( Server == NULL )
 	{
 		KIRCLog( Error, "Trying to rename a user on a null server." );
+		return;
 	}
 
-	Server->RenameUser( Source, Params[ 0 ] );
-	OnNickNameChangedDelegate.Broadcast( Source, Params[ 0 ] );
+	FString OldNick = Source->GetName();
+
+	Server->RenameUser( Source, Message );
+	OnNickNameChangedDelegate.Broadcast( Source, OldNick );
+	OnNickNameChangedEvent( Source, OldNick );
+	Source->OnNickNameChangedDelegate.Broadcast( Source, OldNick );
 }
 
 
@@ -762,12 +850,37 @@ void UKIRCClient::OnJoinHandler( UKIRCUser* Source, const FString& Command, cons
 
 	if ( Channel == NULL )
 	{
-		KIRCLog( Error, "User trying to join a null channel." );
-		return;
+		if ( Source == User )
+		{
+			Channel = Server->EnsureChannel( Params[ 0 ] );
+
+			if ( Channel == NULL )
+			{
+				KIRCLog( Error, "Error ensuring channel existence." );
+				return;
+			}
+
+			// Just in case
+			TArray<UKIRCUser*> Users = Channel->GetUsers();
+
+			for ( UKIRCUser* User : Users )
+				Channel->UserLeft( User );
+		}
+
+		else
+		{
+			KIRCLog( Error, "User trying to join a null channel." );
+			return;
+		}
 	}
 
 	Channel->UserJoined( Source );
-	OnUserJoinedChannelDelegate.Broadcast( Channel, Source );
+	OnJoinDelegate.Broadcast( Channel, Source );
+	OnJoinEvent( Channel, User );
+	Channel->OnJoinedDelegate.Broadcast( Channel, User );
+
+	if ( Source == User )
+		QueryObjectModes( Channel );
 }
 
 
@@ -806,7 +919,9 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 			Server->RemoveChannel( Channel );
 	}
 
-	OnUserLeftChannelDelegate.Broadcast( Channel, Source, Message );
+	OnPartDelegate.Broadcast( Channel, Source, Message );
+	OnPartEvent( Channel, Source, Message );
+	Channel->OnPartedDelegate.Broadcast( Channel, Source, Message );
 }
 
 
@@ -818,7 +933,13 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 		return;
 	}
 
-	if ( Params.Num() == 1 )
+	FString ModeParamList = Message;
+	ModeParamList = ModeParamList.Trim().TrimTrailing();
+
+	TArray<FString> ModeParams;
+	ModeParamList.ParseIntoArray( ModeParams, TEXT( " " ), true );
+
+	if ( ModeParams.Num() == 0 )
 	{
 		KIRCLog( Error, "Mode change received with no modes." );
 		return;
@@ -832,16 +953,16 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 	if ( UKIRCChannel::HasChannelPrefix( Params[ 0 ] ) )
 	{
-		UKIRCChannel* Channel = Server->EnsureChannel( Params[ 0 ] );
+		UKIRCChannel* Channel = Server->GetChannelByName( Params[ 0 ] );
 
 		if ( Channel == NULL )
 		{
-			KIRCLog( Error, "Unable to ensure channel object." );
+			KIRCLog( Error, "Mode change on a null channel." );
 			return;
 		}
 
-		FString ModeString = Params[ 1 ];
-		int32 iCurrentParam = 2;
+		FString ModeString = ModeParams[ 0 ];
+		int32 iCurrentParam = 1;
 		EKIRCModeChange ModeChange = EKIRCModeChange::M_Add;
 		TCHAR ModeChar;
 		UKIRCMode* Mode;
@@ -862,7 +983,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				continue;
 			}
 
-			Mode = Server->GetChannelMode( FString( "" ) + ModeChar );
+			Mode = Server->GetChannelMode( FString( 1, &ModeChar ) );
 
 			if ( Mode == NULL )
 			{
@@ -873,13 +994,13 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 			if ( Mode->GetType() == EKIRCModeType::T_Channel_User )
 			{
 				// All user mode changes require a param
-				if ( iCurrentParam == Params.Num() )
+				if ( iCurrentParam == ModeParams.Num() )
 				{
 					KIRCLog( Error, "Not enough params in mode string." );
 					return;
 				}
 
-				UKIRCUser* Target = Server->EnsureUser( Params[ iCurrentParam ] );
+				UKIRCUser* Target = Server->EnsureUser( ModeParams[ iCurrentParam ] );
 				++iCurrentParam;
 
 				if ( Target == NULL )
@@ -897,25 +1018,30 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				else
 					Channel->RemoveUserMode( Target, Mode );
 
-				OnChannelUserModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
+				OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
+				OnChannelUserModeEvent( Channel, Source, Mode, ModeChange, Target );
+				Channel->OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
+				Target->OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
 			}
 
 			else if ( Mode->GetType() == EKIRCModeType::T_Channel_List )
 			{
 				// All list mode changes require a param
-				if ( iCurrentParam == Params.Num() )
+				if ( iCurrentParam == ModeParams.Num() )
 				{
 					KIRCLog( Error, "Not enough params in mode string." );
 					return;
 				}
 
 				if ( ModeChange == EKIRCModeChange::M_Add )
-					Channel->AddListModeEntry( Mode, Params[ iCurrentParam ] );
+					Channel->AddListModeEntry( Mode, ModeParams[ iCurrentParam ] );
 
 				else
-					Channel->RemoveListModeEntry( Mode, Params[ iCurrentParam ] );
+					Channel->RemoveListModeEntry( Mode, ModeParams[ iCurrentParam ] );
 
-				OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, Params[ iCurrentParam ] );
+				OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+				OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
 				++iCurrentParam;
 			}
 
@@ -924,7 +1050,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				if ( Mode->GetMode() == MODE_CHANNEL_KEY )
 				{
 					// Key always requires a param to be given
-					if ( iCurrentParam == Params.Num() )
+					if ( iCurrentParam == ModeParams.Num() )
 					{
 						KIRCLog( Error, "Not enough params in mode string." );
 						return;
@@ -933,18 +1059,20 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					if ( ModeChange == EKIRCModeChange::M_Add )
 					{
 						Channel->AddUnaryMode( Mode );
-						Channel->SetJoinKey( Params[ iCurrentParam ] );
-						ChannelKeyCache[ Channel ] = Params[ iCurrentParam ];
+						Channel->SetJoinKey( ModeParams[ iCurrentParam ] );
+						ChannelKeyCache.Emplace( Channel->GetName(), ModeParams[ iCurrentParam ] );
 					}
 
 					else
 					{
 						Channel->RemoveUnaryMode( Mode );
 						Channel->SetJoinKey( "" );
-						ChannelKeyCache.Remove( Channel );
+						ChannelKeyCache.Remove( Channel->GetName() );
 					}
 
-					OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, Params[ iCurrentParam ] );
+					OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+					OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+					Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
 					++iCurrentParam;
 				}
 
@@ -953,23 +1081,25 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					if ( ModeChange == EKIRCModeChange::M_Add )
 					{
 						// Limit only needs the param when it's added
-						if ( iCurrentParam == Params.Num() )
+						if ( iCurrentParam == ModeParams.Num() )
 						{
 							KIRCLog( Error, "Not enough params in mode string." );
 							return;
 						}
 
-						if ( !Params[ iCurrentParam ].IsNumeric() )
+						if ( !ModeParams[ iCurrentParam ].IsNumeric() )
 						{
 							KIRCLog( Error, "Limit param is not numeric." );
 							return;
 						}
 
-						int Limit = FCString::Atoi( *Params[ iCurrentParam ] );
+						int Limit = FCString::Atoi( *ModeParams[ iCurrentParam ] );
 
 						Channel->AddUnaryMode( Mode );
 						Channel->SetLimit( Limit );
-						OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, Params[ iCurrentParam ] );
+						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
 						++iCurrentParam;
 					}
 
@@ -977,7 +1107,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					{
 						Channel->RemoveUnaryMode( Mode );
 						Channel->SetLimit( 0 );
-						OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, "0" );
+						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "0" );
+						OnChannelModeEvent( Channel, Source, Mode, ModeChange, "0" );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "0" );
 					}
 				}
 
@@ -986,21 +1118,25 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					// Unknwown mode, assume it operates like user limit
 					if ( ModeChange == EKIRCModeChange::M_Add )
 					{
-						if ( iCurrentParam == Params.Num() )
+						if ( iCurrentParam == ModeParams.Num() )
 						{
 							KIRCLog( Error, "Not enough params in mode string." );
 							return;
 						}
 
 						Channel->AddUnaryMode( Mode );
-						OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, Params[ iCurrentParam ] );
+						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
 						++iCurrentParam;
 					}
 
 					else
 					{
 						Channel->RemoveUnaryMode( Mode );
-						OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+						OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
 					}
 				}
 			}
@@ -1014,22 +1150,28 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				else
 					Channel->RemoveUnaryMode( Mode );
 				
-				OnChannelModeChangedDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+				OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+				OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
+				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
 			}
 		}
 	}
 
-	if ( UKIRCChannel::HasChannelPrefix( Params[ 0 ] ) )
+	else
 	{
-		UKIRCChannel* Channel = Server->EnsureChannel( Params[ 0 ] );
+		UKIRCUser* User = Server->GetUserByName( Params[ 0 ] );
 
-		if ( Channel == NULL )
+		if ( User == NULL )
 		{
-			KIRCLog( Error, "Unable to ensure channel object." );
+			KIRCLog( Error, "Unable to ensure user object." );
 			return;
 		}
 
-		FString ModeString = Params[ 1 ];
+		// Don't care about others' modes.
+		if ( User != this->User )
+			return;
+
+		FString ModeString = ModeParams[ 0 ];
 		int32 iCurrentParam = 2;
 		EKIRCModeChange ModeChange = EKIRCModeChange::M_Add;
 		TCHAR ModeChar;
@@ -1051,7 +1193,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				continue;
 			}
 
-			Mode = Server->GetUserMode( FString( "" ) + ModeChar );
+			Mode = Server->GetUserMode( FString( 1, &ModeChar ) );
 
 			if ( Mode == NULL )
 			{
@@ -1082,7 +1224,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 				UserModes.Remove( Mode );
 			}
 
-			OnUserModeChangedDelegate.Broadcast( User, Mode, ModeChange );
+			OnUserModeDelegate.Broadcast( User, Mode, ModeChange );
+			OnUserModeEvent( User, Mode, ModeChange );
+			User->OnUserModeDelegate.Broadcast( User, Mode, ModeChange );
 		}
 	}
 }
@@ -1107,7 +1251,12 @@ void UKIRCClient::OnTopicChangeHandler( UKIRCUser* Source, const FString& Comman
 	Channel->SetTopicBody( Message );
 	Channel->SetTopicAuthor( Source != NULL ? Source->GetName() : "" );
 	Channel->SetTopicDate( FDateTime::Now() );
-	OnChannelTopicChangedDelegate.Broadcast( Channel, Source, Message );
+	OnTopicChangeDelegate.Broadcast( Channel, Source, Message );
+	OnTopicChangeEvent( Channel, Source, Message );
+	Channel->OnTopicChangedDelegate.Broadcast( Channel, Source, Message );
+
+	if ( Source != NULL )
+		Source->OnTopicChangedDelegate.Broadcast( Channel, Source, Message );
 }
 
 
@@ -1136,12 +1285,25 @@ void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, cons
 	}
 
 	Channel->UserLeft( Target );
-	OnUserKickedFromChannelDelegate.Broadcast( Channel, Source, Target, Message );
+	OnKickDelegate.Broadcast( Channel, Source, Target, Message );
+	OnKickEvent( Channel, Source, Target, Message );
+	Channel->OnKickedDelegate.Broadcast( Channel, Source, Target, Message );
+	
+	if ( Source != NULL )
+		Source->OnKickDelegate.Broadcast( Channel, Source, Target, Message );
+
+	Target->OnKickedDelegate.Broadcast( Channel, Source, Target, Message );
 }
 
 
 void UKIRCClient::OnInviteHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received invit with a null server." );
+		return;
+	}
+
 	if ( Params.Num() < 2 )
 	{
 		KIRCLog( Error, "Received invite with insufficient params." );
@@ -1149,6 +1311,17 @@ void UKIRCClient::OnInviteHandler( UKIRCUser* Source, const FString& Command, co
 	}
 
 	OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
+	OnInvitedEvent( Source, Params[ 1 ] );
+
+	UKIRCUser* User = Server->GetUserByName( Params[ 0 ] );
+
+	if ( User != NULL )
+		User->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
+
+	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+
+	if ( Channel != NULL )
+		Channel->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
 }
 
 
@@ -1165,7 +1338,179 @@ void UKIRCClient::OnQuitHandler( UKIRCUser* Source, const FString& Command, cons
 	for ( int32 i = Channels.Num() - 1; i >= 0; --i )
 		Channels[ i ]->UserLeft( Source );
 
-	OnUserQuitDelegate.Broadcast( Source, Message );
+	OnQuitDelegate.Broadcast( Source, Message );
+	OnQuitEvent( Source, Message );
+
+	if ( Source != NULL )
+		Source->OnQuitDelegate.Broadcast( Source, Message );
+
+	if ( Source == User )
+		Server->Disconnect();
+}
+
+
+void UKIRCClient::OnTopicBodyHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received topic body with null server." );
+	}
+	
+	if ( Params.Num() < 2 )
+	{
+		KIRCLog( Error, "Received topic body with no channel." );
+		return;
+	}
+
+	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+
+	if ( Channel == NULL )
+	{
+		KIRCLog( Error, "Topic body received, but cannot find channel." );
+		return;
+	}
+
+	Channel->SetTopicBody( Message );
+	OnTopicReceiveDelegate.Broadcast( Channel, Message );
+	Channel->OnTopicReceiveDelegate.Broadcast( Channel, Message );
+}
+
+
+void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received topic details with null server." );
+	}
+
+	if ( Params.Num() < 2 )
+	{
+		KIRCLog( Error, "Received topic details with no channel." );
+		return;
+	}
+
+	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+
+	if ( Channel == NULL )
+	{
+		KIRCLog( Error, "Topic details received, but cannot find channel." );
+		return;
+	}
+
+	if ( !Params[ 3 ].IsNumeric() )
+	{
+		KIRCLog( Error, "Topic details received, but time is not numeric." );
+		return;
+	}
+
+	FString AuthorName = "";
+	FString AuthorIdent = "";
+	FString AuthorHost = "";
+
+	UKIRCUser::ParseHostMask( Params[ 2 ], AuthorName, AuthorIdent, AuthorHost );
+
+	int32 iDate = FCString::Atoi( *Params[ 3 ] );
+	FDateTime TopicDate = FDateTime::FromUnixTimestamp( iDate );
+
+	Channel->SetTopicAuthor( AuthorName );
+	Channel->SetTopicDate( TopicDate );
+	
+	OnTopicDetailsDelegate.Broadcast( Channel, AuthorName, TopicDate, AuthorIdent, AuthorHost, Params[ 2 ] );
+	Channel->OnTopicDetailsDelegate.Broadcast( Channel, AuthorName, TopicDate, AuthorIdent, AuthorHost, Params[ 2 ] );
+}
+
+
+void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received channel name list with null server." );
+	}
+
+	if ( Params.Num() < 3 )
+	{
+		KIRCLog( Error, "Received channel name list with no channel." );
+		return;
+	}
+
+	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 2 ] );
+
+	if ( Channel == NULL )
+	{
+		KIRCLog( Error, "Channel names list received, but cannot find channel." );
+		return;
+	}
+
+	UKIRCMode* Private = Server->GetChannelMode( MODE_CHANNEL_PRIVATE );
+	UKIRCMode* Secret = Server->GetChannelMode( MODE_CHANNEL_SECRET );
+
+	if ( Params[ 1 ] == "*" )
+	{
+		if ( Private != NULL && !Channel->IsChannelModeSet( Private ) )
+			Channel->AddUnaryMode( Private );
+	}
+
+	else if ( Params[ 1 ] == "@" )
+	{
+		if ( Secret != NULL && !Channel->IsChannelModeSet( Secret ) )
+			Channel->AddUnaryMode( Secret );
+	}
+
+	UKIRCMode* Ops = Server->GetChannelMode( MODE_CHANNEL_USER_OP );
+	UKIRCMode* HalfOps = Server->GetChannelMode( MODE_CHANNEL_USER_HALFOP );
+	UKIRCMode* Voice = Server->GetChannelMode( MODE_CHANNEL_USER_VOICE );
+
+	TArray<FString> Names;
+	Message.ParseIntoArray( Names, TEXT( " " ) );
+
+	for ( FString& Name : Names )
+	{
+		int32 iNameStartIndex;
+		TArray<UKIRCMode*> Modes;
+
+		for ( iNameStartIndex = 0; iNameStartIndex < Name.Len(); ++iNameStartIndex )
+		{
+			if ( Name[ iNameStartIndex ] == TAG_USER_OP )
+			{
+				if ( Ops != NULL )
+					Modes.Add( Ops );
+
+				continue;
+			}
+
+			if ( Name[ iNameStartIndex ] == TAG_USER_HALFOP )
+			{
+				if ( HalfOps != NULL )
+					Modes.Add( HalfOps );
+
+				continue;
+			}
+
+			if ( Name[ iNameStartIndex ] == TAG_USER_VOICE )
+			{
+				if ( Voice != NULL )
+					Modes.Add( Voice );
+
+				continue;
+			}
+
+			break;
+		}
+
+		UKIRCUser* User = Server->EnsureUser( Name.Mid( iNameStartIndex ) );
+
+		if ( User == NULL )
+		{
+			KIRCLog( Error, "Unable to ensure user's existence." );
+			return;
+		}
+
+		if ( !User->IsInChannel( Channel ) )
+			Channel->UserJoined( User, User != this->User ); // We don't know when other users joined the channel
+
+		for ( UKIRCMode* Mode : Modes )
+			Channel->AddUserMode( User, Mode );
+	}
 }
 
 
@@ -1215,11 +1560,17 @@ bool UKIRCClient::SendCommandCallback( const FString& Command, TSubclassOf<UKIRC
 }
 
 
-bool UKIRCClient::Message( UKIRCObject* Object, EKIRCMessageType Type, const FString& Message )
+bool UKIRCClient::Message( const FString& Target, EKIRCMessageType Type, const FString& Message )
 {
-	if ( Object == NULL )
+	if ( Target.Len() == 0 )
 	{
-		KIRCLog( Error, "Trying to send a message to a null object." );
+		KIRCLog( Error, "Trying to send a message to a zero-length." );
+		return false;
+	}
+
+	if ( UKIRCChannel::HasChannelPrefix( Target ) && Target.Len() == 1 )
+	{
+		KIRCLog( Error, "Trying to send to channel with just a prefix." );
 		return false;
 	}
 
@@ -1233,16 +1584,16 @@ bool UKIRCClient::Message( UKIRCObject* Object, EKIRCMessageType Type, const FSt
 	{
 		default:
 		case EKIRCMessageType::T_Message:
-			return Cmd( "PRIVMSG %s :%s", *Object->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 10 - Object->GetName().Len() ) );
+			return Cmd( "PRIVMSG %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 10 - Target.Len() ) );
 
 		case EKIRCMessageType::T_Emote:
-			return Cmd( "PRIVMSG %s :\1%s\1", *Object->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 12 - Object->GetName().Len() ) );
+			return Cmd( "PRIVMSG %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 12 - Target.Len() ) );
 
 		case EKIRCMessageType::T_Notice:
-			return Cmd( "NOTICE %s :%s", *Object->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 9 - Object->GetName().Len() ) );
+			return Cmd( "NOTICE %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 9 - Target.Len() ) );
 
 		case EKIRCMessageType::T_CTCP:
-			return Cmd( "NOTICE %s :\1%s\1", *Object->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 11 - Object->GetName().Len() ) );
+			return Cmd( "NOTICE %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 11 - Target.Len() ) );
 	}
 }
 
@@ -1265,11 +1616,11 @@ bool UKIRCClient::UserMode( UKIRCMode* Mode, EKIRCModeChange Change )
 }
 
 
-bool UKIRCClient::JoinChannel( UKIRCChannel* Channel, const FString& Key )
+bool UKIRCClient::JoinChannel( const FString& Channel, const FString& Key )
 {
-	if ( Channel == NULL )
+	if ( Channel.Len() < 2 || !UKIRCChannel::HasChannelPrefix( Channel ) )
 	{
-		KIRCLog( Error, "Tried to join a null channel." );
+		KIRCLog( Error, "Tried to join a channel with an invalid name." );
 		return false;
 	}
 
@@ -1279,15 +1630,12 @@ bool UKIRCClient::JoinChannel( UKIRCChannel* Channel, const FString& Key )
 		ActualKey = ChannelKeyCache[ Channel ];
 
 	if ( ActualKey.Len() == 0 )
-	{
-		return Cmd( "JOIN %s", *Channel->GetName() );
-		ChannelKeyCache.Remove( Channel );
-	}
+		return Cmd( "JOIN %s", *Channel );
 
 	else
 	{
-		return Cmd( "JOIN %s %s", *Channel->GetName(), *ActualKey );
-		ChannelKeyCache[ Channel ] = ActualKey;
+		return Cmd( "JOIN %s %s", *Channel, *ActualKey );
+		ChannelKeyCache.Emplace( Channel, ActualKey );
 	}
 }
 

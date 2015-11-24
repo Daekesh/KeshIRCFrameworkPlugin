@@ -24,6 +24,7 @@ UKIRCServer::UKIRCServer( const class FObjectInitializer& ObjectInitializer )
 	Version = "";
 	Client = NULL;
 	State = EKIRCServerState::S_Disconnected;
+	bSocketConnecting = false;
 	HostResolver = NULL;
 	HostAddr.Reset();
 	Ticker = NULL;
@@ -110,12 +111,16 @@ void UKIRCServer::Reset()
 	UserModes.Empty();
 	ChannelModes.Empty();
 	Settings.Empty();
+	bSocketConnecting = false;
 	
 	if ( HostAddr.IsValid() )
 	{
 		int32 iIntIp = 0;
 		HostAddr->SetIp( iIntIp );
 	}
+
+	if ( Client != NULL && Client->GetUser() != NULL && Client->GetUser()->GetName().Len() > 0 )
+		Users.Emplace( Client->GetUser()->GetName(), Client->GetUser() );
 }
 
 
@@ -156,6 +161,20 @@ bool UKIRCServer::Disconnect()
 }
 
 
+const FString& UKIRCServer::GetSetting( const FString& Setting ) const
+{
+	static FString DefaultReturnValue = "";
+
+	FString SettingUpper = Setting.ToUpper();
+
+	if ( !Settings.Contains( SettingUpper ) )
+		return DefaultReturnValue;
+
+	return Settings[ SettingUpper ];
+}
+
+
+
 UKIRCChannel* UKIRCServer::GetChannelByName( const FString& Name ) const
 {
 	if ( Name.Len() == 0 )
@@ -175,6 +194,9 @@ UKIRCChannel* UKIRCServer::GetChannelByName( const FString& Name ) const
 		KIRCLog( Error, "Trying to get a channel with only channel prefix." );
 		return NULL;
 	}
+
+	if ( !Channels.Contains( Name ) )
+		return NULL;
 
 	return Channels[ Name ];
 }
@@ -206,7 +228,7 @@ UKIRCChannel* UKIRCServer::EnsureChannel( const FString& Name )
 	{
 		Channel = NewObject<UKIRCChannel>( this );
 		Channel->InitChannel( Name );
-		Channels[ Name ] = Channel;
+		Channels.Emplace( Name, Channel );
 	}
 
 	return Channel;
@@ -226,6 +248,9 @@ UKIRCUser* UKIRCServer::GetUserByName( const FString& Name ) const
 		KIRCLog( Error, "Trying to get a user with a channel prefix." );
 		return NULL;
 	}
+
+	if ( !Users.Contains( Name ) )
+		return NULL;
 
 	return Users[ Name ];
 }
@@ -251,7 +276,7 @@ UKIRCUser* UKIRCServer::EnsureUser( const FString& Name, const FString& Ident, c
 	{
 		User = NewObject<UKIRCUser>( this );
 		User->InitUser( Name, Ident, Host );
-		Users[ Name ] = User;
+		Users.Emplace( Name, User );
 	}
 
 	return User;
@@ -279,7 +304,7 @@ void UKIRCServer::RenameUser( UKIRCUser* User, const FString& NewName )
 	}
 
 	Users.Remove( User->GetName() );
-	Users[ NewName ] = User;
+	Users.Emplace( NewName, User );
 	User->SetName( NewName );
 }
 
@@ -293,6 +318,11 @@ void UKIRCServer::RemoveUser( UKIRCUser* User )
 	}
 
 	Users.Remove( User->GetName() );
+
+	TArray<UKIRCChannel*> Channels = User->GetChannels();
+
+	for ( UKIRCChannel* Channel : Channels )
+		Channel->UserLeft( User );
 }
 
 
@@ -305,15 +335,25 @@ void UKIRCServer::RemoveChannel( UKIRCChannel* Channel )
 	}
 
 	Channels.Remove( Channel->GetName() );
+
+	TArray<UKIRCUser*> Users = Channel->GetUsers();
+
+	for ( UKIRCUser* User : Users )
+		Channel->UserLeft( User );
 }
 
 
 void UKIRCServer::ParseLine( const FString& Line )
 {
+	KIRCLogF( Log, "%s", *Line );
+
 	if ( Line.Len() < 6 )
 	{
 		if ( Client != NULL )
-			Client->OnUnhandledRawDelegate.Broadcast( this, Line );
+		{
+			Client->OnUnhandledRawMessageDelegate.Broadcast( this, Line );
+			Client->OnUnhandledRawMessageEvent( this, Line );
+		}
 
 		return;
 	}
@@ -323,7 +363,10 @@ void UKIRCServer::ParseLine( const FString& Line )
 		if ( Line.Left( 5 ) != "PING " )
 		{
 			if ( Client != NULL )
-				Client->OnUnhandledRawDelegate.Broadcast( this, Line );
+			{
+				Client->OnUnhandledRawMessageDelegate.Broadcast( this, Line );
+				Client->OnUnhandledRawMessageEvent( this, Line );
+			}
 
 			return;
 		}
@@ -341,9 +384,10 @@ void UKIRCServer::ParseLine( const FString& Line )
 	static FRegexPattern Pattern = FRegexPattern( "^:(([^!@ ]+)(!([^@ ]+))?(@([^ ]+))?) ([^: ]+)(( [^: ]+)*)?( :(.*))?$" );
 	FRegexMatcher Matcher = FRegexMatcher( Pattern, Line );
 
-	if ( Matcher.FindNext() )
+	if ( !Matcher.FindNext() )
 	{
-		Client->OnUnhandledRawDelegate.Broadcast( this, Line );
+		Client->OnUnhandledRawMessageDelegate.Broadcast( this, Line );
+		Client->OnUnhandledRawMessageEvent( this, Line );
 		return;
 	}
 
@@ -351,7 +395,8 @@ void UKIRCServer::ParseLine( const FString& Line )
 
 	if ( SourceName.Len() == 0 )
 	{
-		Client->OnUnhandledRawDelegate.Broadcast( this, Line );
+		Client->OnUnhandledRawMessageDelegate.Broadcast( this, Line );
+		Client->OnUnhandledRawMessageEvent( this, Line );
 		return;
 	}
 
@@ -359,20 +404,20 @@ void UKIRCServer::ParseLine( const FString& Line )
 	FString SourceIdent = Matcher.GetCaptureGroup( 4 );
 	FString SourceHost = Matcher.GetCaptureGroup( 6 );
 	FString Command = Matcher.GetCaptureGroup( 7 ).ToUpper();
-	FString ParamString = Matcher.GetCaptureGroup( 8 );
+	FString ParamString = Matcher.GetCaptureGroup( 8 ).Trim().TrimTrailing();
 	FString Message = Matcher.GetCaptureGroup( 11 );
 	UKIRCUser* Source = NULL;
 
 	if ( SourceIdent.Len() > 0 && SourceHost.Len() > 0 )
 	{
-		Source = EnsureUser( SourceName, "", "" );
+		Source = EnsureUser( SourceName );
 
 		if ( Source != NULL && Source->GetHostMask() == "" )
 			Source->UpdateMask( SourceMask );
 	}
 
 	TArray<FString> Params;
-	ParamString.ParseIntoArray( Params, TEXT( " ." ) );
+	ParamString.ParseIntoArray( Params, TEXT( " " ) );
 
 	Client->HandleMessage( Line, Source, Command, Params, Message );
 }
@@ -407,6 +452,8 @@ bool UKIRCServer::Send( const FString& Command )
 				return false;
 			}
 
+			KIRCLogF( Log, "%s", *CleanCommand );
+
 			int32 iSent = 0;
 			uint8 buffer[ MaxCommandLength + 2 ];
 
@@ -429,7 +476,7 @@ void UKIRCServer::OnConnected()
 	SetState( EKIRCServerState::S_Connected );
 	
 	if ( Client != NULL )
-		Client->OnServerConnectedDelegate.Broadcast( this );
+		Client->OnConnected();
 }
 
 
@@ -438,7 +485,7 @@ void UKIRCServer::OnDisconnected( EKIRCServerDisconnectReason Reason )
 	SetState( EKIRCServerState::S_Disconnected );
 
 	if ( Client != NULL )
-		Client->OnServerDisconnectedDelegate.Broadcast( this, Reason );
+		Client->OnDisconnected( Reason );
 }
 
 
@@ -447,10 +494,7 @@ void UKIRCServer::OnConnectionError( const FString& Reason )
 	SetState( EKIRCServerState::S_Error );
 
 	if ( Client != NULL )
-	{
-		Client->OnConnectionErrorDelegate.Broadcast( this, Reason );
-		Client->OnServerDisconnectedDelegate.Broadcast( this, EKIRCServerDisconnectReason::R_Network );
-	}
+		Client->OnConnectionError( Reason );
 }
 
 
@@ -465,7 +509,7 @@ UKIRCMode* UKIRCServer::AddUserMode( const FString& ModeCharacter )
 	UKIRCMode* NewMode = NewObject<UKIRCMode>( this );
 	NewMode->InitMode( ModeCharacter, EKIRCModeType::T_User );
 
-	UserModes[ ModeCharacter ] = NewMode;
+	UserModes.Emplace( ModeCharacter, NewMode );
 
 	return NewMode;
 }
@@ -495,7 +539,7 @@ UKIRCMode* UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeT
 		case EKIRCModeType::T_Channel_Param:
 		case EKIRCModeType::T_Channel_List:
 		case EKIRCModeType::T_Channel_User:
-			ChannelModes[ ModeCharacter ] = NewMode;
+			ChannelModes.Emplace( ModeCharacter, NewMode );
 	}
 
 	return NewMode;
@@ -544,6 +588,9 @@ void UKIRCServer::Tick()
 			switch ( Socket->GetConnectionState() )
 			{
 				case SCS_NotConnected:
+					if ( bSocketConnecting )
+						return;
+
 					uint32 iInetIp;
 					HostAddr->GetIp( iInetIp );
 
@@ -564,7 +611,7 @@ void UKIRCServer::Tick()
 					}
 
 					ReadBuffer = "";
-					OnConnected();
+					bSocketConnecting = true;
 					return;
 
 				// Should never reach this point, but just in case.
@@ -573,11 +620,13 @@ void UKIRCServer::Tick()
 					Socket->Close();
 					delete Socket;
 					Socket = NULL;
+					bSocketConnecting = false;
 					OnConnectionError( "Socket failed to connect." );
 					return;
 
 				// Should never reach this point, but just in case.
 				case SCS_Connected:
+					bSocketConnecting = false;
 					OnConnected();
 					return;
 			}
