@@ -40,14 +40,19 @@ public:
 
 	// Returns true if we're in the given channel.
 	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
-	bool IsInChannel( UKIRCChannel* Channel ) const { return Channel == NULL ? false : Channels.Contains( Channel ); }
+	bool IsInChannel( const UKIRCChannel* const Channel ) const { return Channel == NULL ? false : Channels.Contains( Channel ); }
 
 	// Returns the Channel User Info for this user and the given channel.
 	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
-	const FKIRCChannelUserInfo& GetChannelUserInfo( UKIRCChannel* Channel );
+	FKIRCChannelUserInfo GetChannelUserInfoBP( const UKIRCChannel* const Channel  ) const { return GetChannelUserInfo( Channel ); }
+	const FKIRCChannelUserInfo& GetChannelUserInfo( const UKIRCChannel* const Channel ) const;
 
 	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
+	TArray<UKIRCChannel*> GetChannelsBP() const { return Channels; }
 	const TArray<UKIRCChannel*>& GetChannels() const { return Channels; }
+
+	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
+	bool IsClient() const;
 
 	FKIRCUserMessage OnMessageDelegate;
 	FKIRCChannelInvite OnInvitedDelegate; // This user is sending the invite
@@ -63,11 +68,16 @@ public:
 	FKIRCUserNickNameChange OnNickNameChangedDelegate;
 	FKIRCChannelTopicChange OnTopicChangedDelegate;
 	
+	static void ParseHostMask( const FString& Mask, FString& NickName, FString& Ident, FString& Host );
+
 protected:
 
 	friend class UKIRCServer;
 	friend class UKIRCClient;
 	friend class UKIRCChannel;
+	friend class UKIRCWhoCommandResponseScanner;
+	friend class UKIRCWhoIsCommandResponseScanner;
+	friend class UKIRCWhoWasCommandResponseScanner;
 
 	UPROPERTY( Category = "KeshIRC|Model|User", VisibleInstanceOnly )
 	FString NickName;
@@ -90,8 +100,6 @@ protected:
 	UPROPERTY( Category = "KeshIRC|Model|User", VisibleInstanceOnly )
 	TArray<UKIRCChannel*> Channels;
 
-	static void ParseHostMask( const FString& Mask, FString& NickName, FString& Ident, FString& Host );
-
 	UKIRCUser( const class FObjectInitializer& ObjectInitializer );
 
 	// Called when first created to init the user
@@ -107,9 +115,9 @@ protected:
 	virtual void SetRealName( const FString& RealName ) { this->RealName = RealName; }
 
 	// Method to add the channel to the internal list. Returns true if added.
-	virtual bool JoinChannel( UKIRCChannel* Channel );
+	virtual bool JoinChannel( UKIRCChannel* const Channel );
 
 	// Method to remove the channel from the internal list. Returns true if removed.
-	virtual bool LeaveChannel( UKIRCChannel* Channel );
+	virtual bool LeaveChannel( const UKIRCChannel* const Channel );
 
 };

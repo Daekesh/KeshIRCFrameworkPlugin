@@ -73,6 +73,9 @@ public:
 	UFUNCTION( Category = "KeshIRC|Model|Server", BlueprintCallable )
 	EKIRCServerState GetState() const { return State; }
 
+	UFUNCTION( Category = "KeshIRC|Model|Server", BlueprintCallable )
+	UKIRCClient* const GetClient() const { return Client; }
+
 	
 	/**********************
 	 * Channels and Users *
@@ -83,11 +86,11 @@ public:
 
 	// Returns the channel by name. Channel must start with a valid channel prefix.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Channels", BlueprintCallable )
-	UKIRCChannel* GetChannelByName( const FString& Name ) const;
+	UKIRCChannel* const GetChannelByName( const FString& Name ) const;
 
 	// If the channel doesn't exist, a skeleton channel is created and returned.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Channels", BlueprintCallable )
-	UKIRCChannel* EnsureChannel( const FString& Name );
+	UKIRCChannel* const EnsureChannel( const FString& Name );
 
 	// Returns all the channels the user is currently in.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Channels", BlueprintCallable )
@@ -102,11 +105,11 @@ public:
 	int32 GetUserCount() const { return Users.Num(); }
 
 	UFUNCTION( Category = "KeshIRC|Model|Server|Users", BlueprintCallable )
-	UKIRCUser* GetUserByName( const FString& Name ) const;
+	UKIRCUser* const GetUserByName( const FString& Name ) const;
 
 	// If the user doesn't exist, a skeleton user is created and returned.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Users", BlueprintCallable )
-	UKIRCUser* EnsureUser( const FString& Name, const FString& Ident = "", const FString& Host = "" );
+	UKIRCUser* const EnsureUser( const FString& Name, const FString& Ident = "", const FString& Host = "" );
 
 	// Returns all the users currently visible to the user.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Users", BlueprintCallable )
@@ -119,15 +122,15 @@ public:
 
 	// Changes the user in the Users map to a new username.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Users", BlueprintCallable )
-	void RenameUser( UKIRCUser* User, const FString& NewName );
+	void OnUserNameChange( UKIRCUser* const User, const FString& NewName );
 
 	// Removes user from the user map.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Users", BlueprintCallable )
-	void RemoveUser( UKIRCUser* User );
+	void RemoveUser( const UKIRCUser* const User );
 
 	// Removes channel from the channel map.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Channels", BlueprintCallable )
-	void RemoveChannel( UKIRCChannel* Channel );
+	void RemoveChannel( UKIRCChannel* const Channel );
 
 
 	/****************
@@ -135,37 +138,77 @@ public:
 	 ****************/
 
 	// Returns the mode object for the given mode character.
+	// Returned object is not const. Die BP, die!
 	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|User", BlueprintCallable )
-	UKIRCMode* GetUserMode( const FString& Mode ) const { if ( !UserModes.Contains( Mode ) ) return NULL; return UserModes[ Mode ]; }
+	UKIRCMode* const GetUserModeBP( const FString& ModeCharacter ) const { return const_cast<UKIRCMode*>( GetUserMode( ModeCharacter ) ); }
+	const UKIRCMode* const GetUserMode( const FString& ModeCharacter ) const
+	{ 
+		if ( !UserModes.Contains( ModeCharacter ) )
+			return NULL; 
+		
+		return const_cast<UKIRCMode*>( UserModes[ ModeCharacter ] );
+	}
 
 	// Returns true if the given user mode is available on the server.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|User", BlueprintCallable )
-	bool IsUserModeAvailable( const FString& Mode ) const { return UserModes.Contains( Mode ); }
+	bool IsUserModeAvailable( const FString& ModeCharacter ) const { return UserModes.Contains( ModeCharacter ); }
 
 	// Returns a list (expensive) of the user modes available on the server.
+	// Returned object is not const. Die BP, die!
 	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|User", BlueprintCallable )
-	TArray<UKIRCMode*> GetAvailableUserModes() const
+	TArray<UKIRCMode*> GetAvailableUserModesBP() const
 	{
-		TArray<UKIRCMode*> UserModeList;
-		UserModes.GenerateValueArray( UserModeList );
-		return UserModeList;
+		TArray<const UKIRCMode*> UserModesArrayConst = GetAvailableUserModes();
+		TArray<UKIRCMode*> UserModesArray;
+
+		for ( const UKIRCMode* const Mode : UserModesArrayConst )
+			UserModesArray.Add( const_cast< UKIRCMode* >( Mode ) );
+
+		return UserModesArray;
+	}
+
+	TArray<const UKIRCMode*> GetAvailableUserModes() const
+	{
+		TArray<const UKIRCMode*> UserModesArrayConst;
+		UserModes.GenerateValueArray( UserModesArrayConst );
+		return UserModesArrayConst;
 	}
 
 	// Returns the mode object for the given mode character.
+	// Returned object is not const. Die BP, die!
 	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|Channel", BlueprintCallable )
-	UKIRCMode* GetChannelMode( const FString& Mode ) const { if ( !ChannelModes.Contains( Mode ) ) return NULL; return ChannelModes[ Mode ]; }
+	UKIRCMode* const GetChannelModeBP( const FString& ModeCharacter ) const { return const_cast<UKIRCMode*>( GetChannelMode( ModeCharacter ) ); }
+	const UKIRCMode* const GetChannelMode( const FString& ModeCharacter ) const
+	{ 
+		if ( !ChannelModes.Contains( ModeCharacter ) )
+			return NULL; 
+		
+		return ChannelModes[ ModeCharacter ];
+	}
 
 	// Returns true if the given channel mode is available on the server.
 	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|Channel", BlueprintCallable )
-	bool IsChannelModeAvailable( const FString& Mode ) const { return ChannelModes.Contains( Mode ); }
+	bool IsChannelModeAvailable( const FString& ModeCharacter ) const { return ChannelModes.Contains( ModeCharacter ); }
 
 	// Returns a list (expensive) of the channel modes available on the server.
-	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|Channel|User", BlueprintCallable )
-		TArray<UKIRCMode*> GetAvailableChannelModes() const
+	// Returned object is not const. Die BP, die!
+	UFUNCTION( Category = "KeshIRC|Model|Server|Modes|Channel", BlueprintCallable )
+	TArray<UKIRCMode*> GetAvailableChannelModesBP() const
 	{
+		TArray<const UKIRCMode*> ChannelModesArrayConst = GetAvailableChannelModes();
 		TArray<UKIRCMode*> ChannelModesArray;
-		ChannelModes.GenerateValueArray( ChannelModesArray );
+
+		for ( const UKIRCMode* const Mode : ChannelModesArrayConst )
+			ChannelModesArray.Add( const_cast< UKIRCMode* >( Mode ) );
+
 		return ChannelModesArray;
+	}
+
+	TArray<const UKIRCMode*> GetAvailableChannelModes() const
+	{
+		TArray<const UKIRCMode*> ChannelModesArrayConst;
+		ChannelModes.GenerateValueArray( ChannelModesArrayConst );
+		return ChannelModesArrayConst;
 	}
 
 
@@ -231,10 +274,10 @@ protected:
 	TMap<FString, UKIRCUser*> Users;
 
 	UPROPERTY()
-	TMap<FString, UKIRCMode*> UserModes;
+	TMap<FString, const UKIRCMode*> UserModes;
 
 	UPROPERTY()
-	TMap<FString, UKIRCMode*> ChannelModes;
+	TMap<FString, const UKIRCMode*> ChannelModes;
 
 	UPROPERTY()
 	TMap<FString, FString> Settings;
@@ -242,7 +285,6 @@ protected:
 	FKIRCServerTicket* Ticker;
 	FResolveInfo* HostResolver;
 	TSharedPtr<FInternetAddr> HostAddr;
-	bool bSocketConnecting;
 	FSocket* Socket;
 	uint8 SocketBuffer[ 1024 ];
 	FString ReadBuffer;
@@ -258,15 +300,15 @@ protected:
 
 	void SetHostActual( const FString& NewHost ) { HostActual = NewHost; }
 
-	void SetSetting( const FString& Setting, const FString& Value ) { Settings.Emplace( Setting, Value ); }
+	void SetSetting( const FString& Setting, const FString& Value ) { Settings.Emplace( Setting.ToUpper(), Value ); }
 	
 	virtual void SetState( EKIRCServerState State ) { this->State = State; }
 
 	virtual void Tick();
 
-	UKIRCMode* AddUserMode( const FString& ModeCharacter );
+	const UKIRCMode* const AddUserMode( const FString& ModeCharacter );
 
-	UKIRCMode* AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType );
+	const UKIRCMode* const AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType, EKIRCModeParamRequired ParamRequired );
 
 	virtual void ParseLine( const FString& Line );
 

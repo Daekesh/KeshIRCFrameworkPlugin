@@ -32,7 +32,7 @@ public:
 	void UnregisterHandler();
 
 	UFUNCTION()
-	void CommandCallback( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void CommandCallback( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintImplementableEvent )
 	void HandleCommand( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );

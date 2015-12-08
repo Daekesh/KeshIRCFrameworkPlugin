@@ -7,19 +7,33 @@
 #include "KeshIRC/Model/KIRCUser.h"
 #include "KeshIRC/Model/KIRCChannel.h"
 #include "KeshIRC/Model/KIRCMode.h"
-#include "KeshIRC/Controller/KIRCCommandResponseScanner.h"
 #include "KeshIRC/Controller/KIRCBlueprintMessageHandler.h"
+#include "KeshIRC/Controller/KIRCCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCJoinCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCNickCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCPartCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCTopicCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCListCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCUserModeCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCWhoCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCWhoIsCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCWhoWasCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCKickCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCChannelNameListCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCServerNameListCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCInviteCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCAwayCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCTopicQueryCommandResponseScanner.h"
+#include "KeshIRC/Controller/CommandResponseScanners/KIRCIsOnCommandResponseScanner.h"
 #include "KeshIRC/Controller/KIRCClient.h"
+
 
 namespace KeshIRCFramework
 {
 	FKIRCNumerics Numerics;
 	FKIRCInvalidCharacters InvalidCharacters;
+	FKIRCModes Modes;
 }
-
-#define Cmd( Format, ... ) SendCommand( FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
-#define CmdScan( ScannerClass, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass )
-#define CmdScanCB( ScannerClass, Object, Function, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, ScannerClass, Object )
 
 
 FString UKIRCClient::CleanString( const FString& DisallowedCharactes, const FString& String, bool bAllowUpperOctet )
@@ -84,7 +98,7 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 {
 	KIRCLog( Log, "Initiating client." );
 
-	FString CleanNickName = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().NickName, NickName );
+	const FString CleanNickName = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().NickName, NickName );
 
 	if ( CleanNickName.Len() < 1 || CleanNickName.Len() > 30 )
 	{
@@ -92,7 +106,7 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 		return false;
 	}
 
-	FString CleanIdent = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().Ident, Ident );
+	const FString CleanIdent = UKIRCClient::CleanString( UKIRCClient::GetInvalidCharacters().Ident, Ident );
 
 	if ( CleanIdent.Len() < 1 || CleanIdent.Len() > 30 )
 	{
@@ -130,7 +144,7 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 		if ( CleanedAltNickName.Len() < 1 || CleanedAltNickName.Len() > 30 )
 			continue;
 
-		NickNameList.Add( CleanedAltNickName );
+		NickNameList.AddUnique( CleanedAltNickName );
 	}
 
 	SetupMessageHandlers();
@@ -138,7 +152,7 @@ bool UKIRCClient::InitClient( const FString& ServerName, const FString& Host, in
 }
 
 
-bool UKIRCClient::HasModeString( const FString& Mode ) const
+bool UKIRCClient::HasModeString( const FString& ModeCharacter ) const
 {
 	if ( Server == NULL )
 	{
@@ -146,12 +160,12 @@ bool UKIRCClient::HasModeString( const FString& Mode ) const
 		return false;
 	}
 	
-	UKIRCMode* ModeObj = Server->GetUserMode( Mode );
+	const UKIRCMode* const Mode = Server->GetUserMode( ModeCharacter );
 
-	if ( ModeObj == NULL )
+	if ( Mode == NULL )
 		return false;
 
-	return HasMode( ModeObj );
+	return HasMode( Mode );
 }
 
 
@@ -165,17 +179,19 @@ const FString& UKIRCClient::GetCachedKeyForChannel( const FString& Channel ) con
 		return NoKey;
 	}
 
-	if ( !ChannelKeyCache.Contains( Channel ) )
+	if ( !ChannelKeyCache.Contains( Channel.ToUpper() ) )
 		return NoKey;
 
-	return ChannelKeyCache[ Channel ];
+	return ChannelKeyCache[ Channel.ToUpper() ];
 }
 
 
-void UKIRCClient::HandleMessage( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::HandleMessage_Implementation( const FString& Line, UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
-	if ( MessageHandlers.Contains( Command ) )
-		MessageHandlers[ Command ].Broadcast( Source, Command, Params, Message );
+	const FString CommandUpper = Command.ToUpper();
+
+	if ( MessageHandlers.Contains( CommandUpper ) )
+		MessageHandlers[ CommandUpper ].Broadcast( Source, Command, Params, Message );
 
 	else
 	{
@@ -200,6 +216,7 @@ void UKIRCClient::HandleMessage( const FString& Line, UKIRCUser* Source, const F
 			if ( CommandResponseScanners[ 0 ]->IsComplete() )
 			{
 				CommandResponseScanners[ 0 ]->ScanComplete();
+				OnCommandResponseDelegate.Broadcast( this, CommandResponseScanners[ 0 ] );
 				CommandResponseScanners.RemoveAt( 0 );
 
 				if ( CommandResponseScanners.Num() > 0 )
@@ -309,6 +326,12 @@ const FKIRCNumerics& UKIRCClient::GetNumerics()
 }
 
 
+FKIRCNumerics UKIRCClient::GetNumericsBP()
+{
+	return KeshIRCFramework::Numerics;
+}
+
+
 FString UKIRCClient::NumericToString( int32 Numeric )
 {
 	FString NumericString = FString::FromInt( Numeric );
@@ -320,27 +343,41 @@ FString UKIRCClient::NumericToString( int32 Numeric )
 }
 
 
+const FKIRCModes& UKIRCClient::GetModes()
+{
+	return KeshIRCFramework::Modes;
+}
+
+
+FKIRCModes UKIRCClient::GetModesBP()
+{
+	return KeshIRCFramework::Modes;
+}
+
+
 FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
+	static FDelegateHandle DefaultReturnValue = FDelegateHandle();
+
 	if ( Command.Len() == 0 )
 	{
 		KIRCLog( Error, "Tried to add a handler for a zero length command." );
-		return FDelegateHandle();
+		return DefaultReturnValue;
 	}
 
 	if ( CallbackObject == NULL )
 	{
 		KIRCLog( Error, "Tried to add a callback on a null objcet." );
-		return FDelegateHandle();
+		return DefaultReturnValue;
 	}
 
 	if ( CallbackFunction == NULL )
 	{
 		KIRCLog( Error, "Tried to add a callback with a null function." );
-		return FDelegateHandle();
+		return DefaultReturnValue;
 	}
 
-	FString CommandUpper = Command.ToUpper();
+	const FString CommandUpper = Command.ToUpper();
 
 	if ( !MessageHandlers.Contains( CommandUpper ) )
 	{
@@ -354,10 +391,12 @@ FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject*
 
 FDelegateHandle UKIRCClient::AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
+	static FDelegateHandle DefaultReturnValue = FDelegateHandle();
+
 	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
 	{
 		KIRCLog( Error, "Tried to add an out of range numeric handler." );
-		return FDelegateHandle();
+		return DefaultReturnValue;
 	}
 
 	return AddMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
@@ -378,7 +417,7 @@ void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle 
 		return;
 	}
 
-	FString CommandUpper = Command.ToUpper();
+	const FString CommandUpper = Command.ToUpper();
 
 	if ( !MessageHandlers.Contains( CommandUpper ) )
 	{
@@ -405,7 +444,7 @@ void UKIRCClient::RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle )
 }
 
 
-UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Client, TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
+UKIRCBlueprintMessageHandler* const UKIRCClient::CreateMessageHandler( TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
 																 bool bAutoRegister, bool bStoreReference )
 {
 	if ( MessageHandlerClass == NULL )
@@ -434,7 +473,7 @@ UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Cl
 		return NULL;
 	}
 
-	UKIRCBlueprintMessageHandler* NewMessageHandler = NewObject<UKIRCBlueprintMessageHandler>( Client, MessageHandlerClass );
+	UKIRCBlueprintMessageHandler* const NewMessageHandler = NewObject<UKIRCBlueprintMessageHandler>( this, MessageHandlerClass );
 
 	if ( NewMessageHandler == NULL )
 	{
@@ -443,10 +482,10 @@ UKIRCBlueprintMessageHandler* UKIRCClient::CreateMessageHandler( UKIRCClient* Cl
 	}
 
 	if ( bAutoRegister )
-		NewMessageHandler->RegisterHandler( Client );
+		NewMessageHandler->RegisterHandler( this );
 
 	if ( bStoreReference )
-		Client->BlueprintMessageHandlers.Add( NewMessageHandler );
+		this->BlueprintMessageHandlers.Add( NewMessageHandler );
 
 	return NewMessageHandler;
 }
@@ -489,10 +528,13 @@ void UKIRCClient::SetupMessageHandlers()
 	AddMessageHandler( "KICK", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnKickHandler ) );
 	AddMessageHandler( "INVITE", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnInviteHandler ) );
 	AddMessageHandler( "QUIT", this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnQuitHandler ) );
+
+	for ( TSubclassOf<UKIRCBlueprintMessageHandler> BlueprintMessagerHandlerClass : MessageHandlerClasses )
+		CreateMessageHandler( BlueprintMessagerHandlerClass, true, true );
 }
 
 
-void UKIRCClient::OnNickNegotiationFatalHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNickNegotiationFatalHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	KIRCLog( Error, "Critical error negotiating nickname." );
 
@@ -506,7 +548,7 @@ void UKIRCClient::OnNickNegotiationFatalHandler( UKIRCUser* Source, const FStrin
 }
 
 
-void UKIRCClient::OnNickNegotaitionNextNickHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNickNegotaitionNextNickHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	KIRCLog( Warning, "Failed to set nickname. Trying next available." );
 
@@ -556,7 +598,7 @@ void UKIRCClient::OnNickNegotaitionNextNickHandler( UKIRCUser* Source, const FSt
 }
 
 
-void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -611,7 +653,7 @@ void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* Source, const FString& Com
 }
 
 
-void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -619,26 +661,26 @@ void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Comman
 		return;
 	}
 
-	if ( Params.Num() < 5 )
+	if ( Params.Num() < 6 )
 	{
 		KIRCLog( Error, "Not enough params in network info." );
 		return;
 	}
 
-	Server->SetHostActual( Params[ 0 ] );
-	Server->SetVersion( Params[ 1 ] );	
-
-	for ( int32 i = 0; i < Params[ 2 ].Len(); ++i )
-		Server->AddUserMode( FString( 1, &Params[ 2 ][ i ] ) );
+	Server->SetHostActual( Params[ 1 ] );
+	Server->SetVersion( Params[ 2 ] );	
 
 	for ( int32 i = 0; i < Params[ 3 ].Len(); ++i )
+		Server->AddUserMode( FString( 1, &Params[ 3 ][ i ] ) );
+
+	for ( int32 i = 0; i < Params[ 4 ].Len(); ++i )
 	{
-		const TCHAR& ModeChar = Params[ 3 ][ i ];
+		const TCHAR& ModeChar = Params[ 4 ][ i ];
 		bool bIsParamMode = false;
 
-		for ( int32 j = 0; j < Params[ 4 ].Len(); ++j )
+		for ( int32 j = 0; j < Params[ 5 ].Len(); ++j )
 		{
-			const TCHAR& ParamChar = Params[ 4 ][ j ];
+			const TCHAR& ParamChar = Params[ 5 ][ j ];
 
 			if ( ModeChar != ParamChar )
 				continue;
@@ -650,30 +692,39 @@ void UKIRCClient::OnNetworkInfoHandler( UKIRCUser* Source, const FString& Comman
 		if ( bIsParamMode )
 		{
 			// Hard core the 2 non-list param chars (key, limit.)
-			if ( ModeChar == 'k' || ModeChar == 'l' )
+			// TODO: Some way to define custom "uses param when removing" for different modes...
+			if ( ModeChar == 'l' )
 			{
-				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Param );
+				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Param, EKIRCModeParamRequired::R_AddingOnly );
+				continue;
+			}
+
+			else if ( ModeChar == 'k' )
+			{
+				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Param, EKIRCModeParamRequired::R_Always );
 				continue;
 			}
 
 			// Hardcore the 3 user modes (ops, halfops/helper, voice.)
+			// TODO: Define some way to have additional channel user modes
 			if ( ModeChar == 'o' || ModeChar == 'h' || ModeChar == 'v' )
 			{
-				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_User );
+				// All channel user modes require the user parameter when removing
+				Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_User, EKIRCModeParamRequired::R_Always );
 				continue;
 			}
 
 			// Otherwise we're a list mode (ban, etc.)
-			Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_List );
+			Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_List, EKIRCModeParamRequired::R_Always );
 			continue;
 		}
 
-		Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Unary );
+		Server->AddChannelMode( FString( 1, &ModeChar ), EKIRCModeType::T_Channel_Unary, EKIRCModeParamRequired::R_Never );
 	}
 }
 
 
-void UKIRCClient::OnServerSettingHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnServerSettingHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -681,7 +732,7 @@ void UKIRCClient::OnServerSettingHandler( UKIRCUser* Source, const FString& Comm
 		return;
 	}
 
-	for ( FString Param : Params )
+	for ( const FString& Param : Params )
 	{
 		int32 iEquals = INDEX_NONE;
 		Param.FindChar( '=', iEquals );
@@ -695,19 +746,19 @@ void UKIRCClient::OnServerSettingHandler( UKIRCUser* Source, const FString& Comm
 }
 
 
-void UKIRCClient::OnMOTDStartHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnMOTDStartHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	MOTD.SetNum( 0 );
 }
 
 
-void UKIRCClient::OnMOTDLineHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnMOTDLineHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	MOTD.Add( Message );
 }
 
 
-void UKIRCClient::OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnMOTDEndHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
 	OnMOTDCompleteEvent( MOTD );
@@ -717,7 +768,7 @@ void UKIRCClient::OnMOTDEndHandler( UKIRCUser* Source, const FString& Command, c
 }
 
 
-void UKIRCClient::OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNoMOTDHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	MOTD.SetNum( 0 );
 	OnMOTDCompleteDelegate.Broadcast( this, MOTD );
@@ -728,7 +779,7 @@ void UKIRCClient::OnNoMOTDHandler( UKIRCUser* Source, const FString& Command, co
 }
 
 
-void UKIRCClient::OnMessageHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnMessageHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() == 0 )
 	{
@@ -803,7 +854,7 @@ void UKIRCClient::OnMessageHandler( UKIRCUser* Source, const FString& Command, c
 }
 
 
-void UKIRCClient::OnNickChangeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNickChangeHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Source == NULL )
 	{
@@ -823,16 +874,16 @@ void UKIRCClient::OnNickChangeHandler( UKIRCUser* Source, const FString& Command
 		return;
 	}
 
-	FString OldNick = Source->GetName();
+	const FString OldNick = Source->GetName();
 
-	Server->RenameUser( Source, Message );
+	Source->SetName( Message );
 	OnNickNameChangedDelegate.Broadcast( Source, OldNick );
 	OnNickNameChangedEvent( Source, OldNick );
 	Source->OnNickNameChangedDelegate.Broadcast( Source, OldNick );
 }
 
 
-void UKIRCClient::OnJoinHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnJoinHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() == 0 )
 	{
@@ -884,7 +935,7 @@ void UKIRCClient::OnJoinHandler( UKIRCUser* Source, const FString& Command, cons
 }
 
 
-void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnPartHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() == 0 )
 	{
@@ -898,7 +949,7 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 		return;
 	}
 
-	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 0 ] );
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 0 ] );
 
 	if ( Channel == NULL )
 	{
@@ -907,6 +958,10 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 	}
 
 	Channel->UserLeft( Source );
+
+	OnPartDelegate.Broadcast( Channel, Source, Message );
+	OnPartEvent( Channel, Source, Message );
+	Channel->OnPartedDelegate.Broadcast( Channel, Source, Message );
 
 	if ( Source == User )
 	{
@@ -918,26 +973,37 @@ void UKIRCClient::OnPartHandler( UKIRCUser* Source, const FString& Command, cons
 		else
 			Server->RemoveChannel( Channel );
 	}
-
-	OnPartDelegate.Broadcast( Channel, Source, Message );
-	OnPartEvent( Channel, Source, Message );
-	Channel->OnPartedDelegate.Broadcast( Channel, Source, Message );
 }
 
 
-void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Trying to change mode on a null server." );
+		return;
+	}
+
 	if ( Params.Num() == 0 )
 	{
 		KIRCLog( Error, "Mode change received with no target." );
 		return;
 	}
 
-	FString ModeParamList = Message;
-	ModeParamList = ModeParamList.Trim().TrimTrailing();
-
 	TArray<FString> ModeParams;
-	ModeParamList.ParseIntoArray( ModeParams, TEXT( " " ), true );
+
+	if ( Message.Len() > 0 )
+	{
+		FString ModeParamList = Message;
+		ModeParamList = ModeParamList.Trim().TrimTrailing();
+		ModeParamList.ParseIntoArray( ModeParams, TEXT( " " ), true );
+	}
+
+	else
+	{
+		ModeParams = Params;
+		ModeParams.RemoveAt( 0 );
+	}
 
 	if ( ModeParams.Num() == 0 )
 	{
@@ -945,15 +1011,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 		return;
 	}
 
-	if ( Server == NULL )
-	{
-		KIRCLog( Error, "Trying to change mode on a null server." );
-		return;
-	}
-
 	if ( UKIRCChannel::HasChannelPrefix( Params[ 0 ] ) )
 	{
-		UKIRCChannel* Channel = Server->GetChannelByName( Params[ 0 ] );
+		UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 0 ] );
 
 		if ( Channel == NULL )
 		{
@@ -961,11 +1021,11 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 			return;
 		}
 
-		FString ModeString = ModeParams[ 0 ];
+		const FString ModeString = ModeParams[ 0 ];
 		int32 iCurrentParam = 1;
 		EKIRCModeChange ModeChange = EKIRCModeChange::M_Add;
 		TCHAR ModeChar;
-		UKIRCMode* Mode;
+		const UKIRCMode* Mode;
 
 		for ( int32 i = 0; i < ModeString.Len(); ++i )
 		{
@@ -1000,7 +1060,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					return;
 				}
 
-				UKIRCUser* Target = Server->EnsureUser( ModeParams[ iCurrentParam ] );
+				UKIRCUser* const Target = Server->EnsureUser( ModeParams[ iCurrentParam ] );
 				++iCurrentParam;
 
 				if ( Target == NULL )
@@ -1047,7 +1107,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 			else if ( Mode->GetType() == EKIRCModeType::T_Channel_Param )
 			{
-				if ( Mode->GetMode() == MODE_CHANNEL_KEY )
+				if ( Mode->GetMode() == UKIRCClient::GetModes().Channel.Key )
 				{
 					// Key always requires a param to be given
 					if ( iCurrentParam == ModeParams.Num() )
@@ -1060,14 +1120,14 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					{
 						Channel->AddUnaryMode( Mode );
 						Channel->SetJoinKey( ModeParams[ iCurrentParam ] );
-						ChannelKeyCache.Emplace( Channel->GetName(), ModeParams[ iCurrentParam ] );
+						ChannelKeyCache.Emplace( Channel->GetName().ToUpper(), ModeParams[ iCurrentParam ] );
 					}
 
 					else
 					{
 						Channel->RemoveUnaryMode( Mode );
 						Channel->SetJoinKey( "" );
-						ChannelKeyCache.Remove( Channel->GetName() );
+						ChannelKeyCache.Remove( Channel->GetName().ToUpper() );
 					}
 
 					OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
@@ -1076,7 +1136,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 					++iCurrentParam;
 				}
 
-				else if ( Mode->GetMode() == MODE_CHANNEL_USER_LIMIT )
+				else if ( Mode->GetMode() == UKIRCClient::GetModes().Channel.UserLimit )
 				{
 					if ( ModeChange == EKIRCModeChange::M_Add )
 					{
@@ -1093,7 +1153,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 							return;
 						}
 
-						int Limit = FCString::Atoi( *ModeParams[ iCurrentParam ] );
+						const int Limit = FCString::Atoi( *ModeParams[ iCurrentParam ] );
 
 						Channel->AddUnaryMode( Mode );
 						Channel->SetLimit( Limit );
@@ -1133,10 +1193,26 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 					else
 					{
-						Channel->RemoveUnaryMode( Mode );
-						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
-						OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
-						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+						if ( Mode->GetParamRequired() == EKIRCModeParamRequired::R_Always )
+						{
+							if ( iCurrentParam == ModeParams.Num() )
+							{
+								KIRCLog( Error, "Not enough params in mode string." );
+								return;
+							}
+
+							OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+							OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+							++iCurrentParam;
+						}
+
+						else
+						{
+							OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+							OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
+							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+						}
 					}
 				}
 			}
@@ -1159,7 +1235,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 
 	else
 	{
-		UKIRCUser* User = Server->GetUserByName( Params[ 0 ] );
+		UKIRCUser* const User = Server->GetUserByName( Params[ 0 ] );
 
 		if ( User == NULL )
 		{
@@ -1171,11 +1247,11 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 		if ( User != this->User )
 			return;
 
-		FString ModeString = ModeParams[ 0 ];
+		const FString ModeString = ModeParams[ 0 ];
 		int32 iCurrentParam = 2;
 		EKIRCModeChange ModeChange = EKIRCModeChange::M_Add;
 		TCHAR ModeChar;
-		UKIRCMode* Mode;
+		const UKIRCMode* Mode;
 
 		for ( int32 i = 0; i < ModeString.Len(); ++i )
 		{
@@ -1232,7 +1308,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* Source, const FString& Command
 }
 
 
-void UKIRCClient::OnTopicChangeHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnTopicChangeHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() == 0 )
 	{
@@ -1260,7 +1336,7 @@ void UKIRCClient::OnTopicChangeHandler( UKIRCUser* Source, const FString& Comman
 }
 
 
-void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnKickHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Params.Num() < 2 )
 	{
@@ -1268,7 +1344,7 @@ void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, cons
 		return;
 	}
 
-	UKIRCChannel* Channel = Server->EnsureChannel( Params[ 0 ] );
+	UKIRCChannel* const Channel = Server->EnsureChannel( Params[ 0 ] );
 
 	if ( Channel == NULL )
 	{
@@ -1276,7 +1352,7 @@ void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, cons
 		return;
 	}
 
-	UKIRCUser* Target = Server->EnsureUser( Params[ 1 ] );
+	UKIRCUser* const Target = Server->EnsureUser( Params[ 1 ] );
 
 	if ( Target == NULL )
 	{
@@ -1296,7 +1372,7 @@ void UKIRCClient::OnKickHandler( UKIRCUser* Source, const FString& Command, cons
 }
 
 
-void UKIRCClient::OnInviteHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnInviteHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -1313,19 +1389,19 @@ void UKIRCClient::OnInviteHandler( UKIRCUser* Source, const FString& Command, co
 	OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
 	OnInvitedEvent( Source, Params[ 1 ] );
 
-	UKIRCUser* User = Server->GetUserByName( Params[ 0 ] );
+	UKIRCUser* const User = Server->GetUserByName( Params[ 0 ] );
 
 	if ( User != NULL )
 		User->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
 
-	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
 
 	if ( Channel != NULL )
 		Channel->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
 }
 
 
-void UKIRCClient::OnQuitHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnQuitHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Source == NULL )
 	{
@@ -1333,23 +1409,23 @@ void UKIRCClient::OnQuitHandler( UKIRCUser* Source, const FString& Command, cons
 		return;
 	}
 
-	TArray<UKIRCChannel*> Channels = Source->GetChannels();
-
-	for ( int32 i = Channels.Num() - 1; i >= 0; --i )
-		Channels[ i ]->UserLeft( Source );
-
 	OnQuitDelegate.Broadcast( Source, Message );
 	OnQuitEvent( Source, Message );
 
 	if ( Source != NULL )
 		Source->OnQuitDelegate.Broadcast( Source, Message );
 
+	TArray<UKIRCChannel*> Channels = Source->GetChannels();
+
+	for ( int32 i = Channels.Num() - 1; i >= 0; --i )
+		Channels[ i ]->UserLeft( Source );
+
 	if ( Source == User )
 		Server->Disconnect();
 }
 
 
-void UKIRCClient::OnTopicBodyHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnTopicBodyHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -1362,7 +1438,7 @@ void UKIRCClient::OnTopicBodyHandler( UKIRCUser* Source, const FString& Command,
 		return;
 	}
 
-	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
 
 	if ( Channel == NULL )
 	{
@@ -1376,7 +1452,7 @@ void UKIRCClient::OnTopicBodyHandler( UKIRCUser* Source, const FString& Command,
 }
 
 
-void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -1389,7 +1465,7 @@ void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* Source, const FString& Comma
 		return;
 	}
 
-	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 1 ] );
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
 
 	if ( Channel == NULL )
 	{
@@ -1406,11 +1482,9 @@ void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* Source, const FString& Comma
 	FString AuthorName = "";
 	FString AuthorIdent = "";
 	FString AuthorHost = "";
-
 	UKIRCUser::ParseHostMask( Params[ 2 ], AuthorName, AuthorIdent, AuthorHost );
 
-	int32 iDate = FCString::Atoi( *Params[ 3 ] );
-	FDateTime TopicDate = FDateTime::FromUnixTimestamp( iDate );
+	const FDateTime TopicDate = FDateTime::FromUnixTimestamp( FCString::Atoi( *Params[ 3 ] ) );
 
 	Channel->SetTopicAuthor( AuthorName );
 	Channel->SetTopicDate( TopicDate );
@@ -1420,7 +1494,7 @@ void UKIRCClient::OnTopicDetailsHandler( UKIRCUser* Source, const FString& Comma
 }
 
 
-void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCClient::OnNameListHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Server == NULL )
 	{
@@ -1433,16 +1507,21 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, 
 		return;
 	}
 
-	UKIRCChannel* Channel = Server->GetChannelByName( Params[ 2 ] );
+	// Names reply with no channel - users without +i set... I think.
+	if ( Params[ 2 ] == "*" )
+		return;
+
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 2 ] );
 
 	if ( Channel == NULL )
 	{
-		KIRCLog( Error, "Channel names list received, but cannot find channel." );
+		// This could be a server names scan - and we may not be in the channel.
+		//KIRCLog( Error, "Channel names list received, but cannot find channel." );
 		return;
 	}
 
-	UKIRCMode* Private = Server->GetChannelMode( MODE_CHANNEL_PRIVATE );
-	UKIRCMode* Secret = Server->GetChannelMode( MODE_CHANNEL_SECRET );
+	const UKIRCMode* const Private = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Private );
+	const UKIRCMode* const Secret = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Secret );
 
 	if ( Params[ 1 ] == "*" )
 	{
@@ -1456,9 +1535,9 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, 
 			Channel->AddUnaryMode( Secret );
 	}
 
-	UKIRCMode* Ops = Server->GetChannelMode( MODE_CHANNEL_USER_OP );
-	UKIRCMode* HalfOps = Server->GetChannelMode( MODE_CHANNEL_USER_HALFOP );
-	UKIRCMode* Voice = Server->GetChannelMode( MODE_CHANNEL_USER_VOICE );
+	const UKIRCMode* const Ops = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Ops );
+	const UKIRCMode* const HalfOps = Server->GetChannelMode( UKIRCClient::GetModes().Channel.HalfOps );
+	const UKIRCMode* const Voice = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Voice );
 
 	TArray<FString> Names;
 	Message.ParseIntoArray( Names, TEXT( " " ) );
@@ -1466,30 +1545,30 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, 
 	for ( FString& Name : Names )
 	{
 		int32 iNameStartIndex;
-		TArray<UKIRCMode*> Modes;
+		TArray<const UKIRCMode*> Modes;
 
 		for ( iNameStartIndex = 0; iNameStartIndex < Name.Len(); ++iNameStartIndex )
 		{
-			if ( Name[ iNameStartIndex ] == TAG_USER_OP )
+			if ( Name[ iNameStartIndex ] == UKIRCClient::GetModes().Channel.OpsPrefix[ 0 ] )
 			{
 				if ( Ops != NULL )
-					Modes.Add( Ops );
+					Modes.AddUnique( Ops );
 
 				continue;
 			}
 
-			if ( Name[ iNameStartIndex ] == TAG_USER_HALFOP )
+			if ( Name[ iNameStartIndex ] == UKIRCClient::GetModes().Channel.HalfOpsPrefix[ 0 ] )
 			{
 				if ( HalfOps != NULL )
-					Modes.Add( HalfOps );
+					Modes.AddUnique( HalfOps );
 
 				continue;
 			}
 
-			if ( Name[ iNameStartIndex ] == TAG_USER_VOICE )
+			if ( Name[ iNameStartIndex ] == UKIRCClient::GetModes().Channel.VoicePrefix[ 0 ] )
 			{
 				if ( Voice != NULL )
-					Modes.Add( Voice );
+					Modes.AddUnique( Voice );
 
 				continue;
 			}
@@ -1497,7 +1576,7 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, 
 			break;
 		}
 
-		UKIRCUser* User = Server->EnsureUser( Name.Mid( iNameStartIndex ) );
+		UKIRCUser* const User = Server->EnsureUser( Name.Mid( iNameStartIndex ) );
 
 		if ( User == NULL )
 		{
@@ -1508,9 +1587,106 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* Source, const FString& Command, 
 		if ( !User->IsInChannel( Channel ) )
 			Channel->UserJoined( User, User != this->User ); // We don't know when other users joined the channel
 
-		for ( UKIRCMode* Mode : Modes )
+		for ( const UKIRCMode* const Mode : Modes )
 			Channel->AddUserMode( User, Mode );
 	}
+}
+
+
+void UKIRCClient::OnChannelModesHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received channel modes with null server." );
+	}
+
+	if ( Params.Num() < 3 )
+	{
+		KIRCLog( Error, "Received channel modes with no channel." );
+		return;
+	}
+
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
+
+	if ( Channel == NULL )
+	{
+		KIRCLog( Error, "Channel modes received, but cannot find channel." );
+		return;
+	}
+
+	const FString ModeString = Params[ 2 ];
+	TCHAR ModeChar;
+	const UKIRCMode* Mode;
+
+	for ( int32 i = 0; i < ModeString.Len(); ++i )
+	{
+		ModeChar = ModeString[ i ];
+
+		if ( ModeChar == '+' )
+			continue;
+
+		if ( ModeChar == '-' )
+		{
+			KIRCLog( Warning, "Received negative mode in channel modes." );
+			continue;
+		}
+
+		Mode = Server->GetChannelMode( FString( 1, &ModeChar ) );
+
+		if ( Mode == NULL )
+		{
+			KIRCLog( Error, "Unknown mode in channel modes." );
+			return;
+		}
+
+		switch ( Mode->GetType() )
+		{
+			case EKIRCModeType::T_Channel_User:
+			case EKIRCModeType::T_Channel_List:
+				KIRCLog( Error, "Received user or list channel mode in channel modes." );
+				return;
+
+			case EKIRCModeType::T_User:
+				KIRCLog( Error, "Received user mode in channel modes." );
+				return;
+
+			case EKIRCModeType::T_Channel_Unary:
+			case EKIRCModeType::T_Channel_Param:
+				Channel->AddUnaryMode( Mode );
+				break;
+		}
+	}
+}
+
+
+void UKIRCClient::OnChannelCreatedHandler( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+{
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "Received channel creation date with null server." );
+	}
+
+	if ( Params.Num() < 3 )
+	{
+		KIRCLog( Error, "Received channel creation date with no channel." );
+		return;
+	}
+
+	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
+
+	if ( Channel == NULL )
+	{
+		KIRCLog( Error, "Channel creation date received, but cannot find channel." );
+		return;
+	}
+
+	if ( !Params[ 2 ].IsNumeric() )
+	{
+		KIRCLog( Error, "Channel creation date is not a number." );
+		return;
+	}
+
+	Channel->SetCreated( FDateTime::FromUnixTimestamp( FCString::Atoi( *Params[ 2 ] ) ) );
 }
 
 
@@ -1518,6 +1694,12 @@ bool UKIRCClient::SendCommand( const FString& Command, UKIRCCommandResponseScann
 {
 	if ( ResponseScanner != NULL )
 	{
+		int32 iSpaceIndex = INDEX_NONE;
+		Command.FindChar( ' ', iSpaceIndex );
+
+		if ( iSpaceIndex != INDEX_NONE )
+			ResponseScanner->SetCommand( Command.Left( iSpaceIndex ) );
+
 		CommandScannerQueueLock.Lock();
 		CommandResponseScanners.Add( ResponseScanner );
 
@@ -1532,7 +1714,8 @@ bool UKIRCClient::SendCommand( const FString& Command, UKIRCCommandResponseScann
 
 
 bool UKIRCClient::SendCommandCallback( const FString& Command, TSubclassOf<UKIRCCommandResponseScanner> ScannerClass,
-						   UObject* CallbackObject, FKIRCCommandResponseCallbackDelegate CallbackFunction )
+									   UObject* CallbackObject, FKIRCCommandResponseCallbackDelegate CallbackFunction, 
+									   const FString& Target )
 {
 	UKIRCCommandResponseScanner* ResponseScanner = NULL;
 
@@ -1551,6 +1734,8 @@ bool UKIRCClient::SendCommandCallback( const FString& Command, TSubclassOf<UKIRC
 			KIRCLog( Error, "Unable to instantiate scanner response class." );
 			return false;
 		}
+
+		ResponseScanner->SetTarget( Target );
 
 		if ( CallbackObject != NULL && CallbackFunction != NULL )
 			ResponseScanner->OnScanComplete.BindUObject( CallbackObject, CallbackFunction );
@@ -1598,7 +1783,7 @@ bool UKIRCClient::Message( const FString& Target, EKIRCMessageType Type, const F
 }
 
 
-bool UKIRCClient::UserMode( UKIRCMode* Mode, EKIRCModeChange Change )
+bool UKIRCClient::ChangeUserMode( const UKIRCMode* const Mode, EKIRCModeChange Change )
 {
 	if ( User == NULL )
 	{
@@ -1612,7 +1797,7 @@ bool UKIRCClient::UserMode( UKIRCMode* Mode, EKIRCModeChange Change )
 		return false;
 	}
 
-	return Cmd( "MODE %s %s%s", *User->GetName(), *( Change == EKIRCModeChange::M_Add ? "+" : "-" ), *Mode->GetMode() );
+	return Cmd( "MODE %s %s%s", *User->GetName(), *FString( Change == EKIRCModeChange::M_Add ? "+" : "-" ), *Mode->GetMode() );
 }
 
 
@@ -1624,23 +1809,29 @@ bool UKIRCClient::JoinChannel( const FString& Channel, const FString& Key )
 		return false;
 	}
 
+	if ( IsInChannel( Channel ) )
+	{
+		KIRCLog( Error, "Tried to join a channel we are already in." );
+		return false;
+	}
+
 	FString ActualKey = Key;
 
-	if ( ActualKey == "" && ChannelKeyCache.Contains( Channel ) )
-		ActualKey = ChannelKeyCache[ Channel ];
+	if ( ActualKey == "" && ChannelKeyCache.Contains( Channel.ToUpper() ) )
+		ActualKey = ChannelKeyCache[ Channel.ToUpper() ];
 
 	if ( ActualKey.Len() == 0 )
-		return Cmd( "JOIN %s", *Channel );
+		return CmdScanTgt( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s", *Channel );
 
 	else
 	{
-		return Cmd( "JOIN %s %s", *Channel, *ActualKey );
-		ChannelKeyCache.Emplace( Channel, ActualKey );
+		return CmdScanTgt( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s %s", *Channel, *ActualKey );
+		ChannelKeyCache.Emplace( Channel.ToUpper(), ActualKey );
 	}
 }
 
 
-bool UKIRCClient::PartChannel( UKIRCChannel* Channel, const FString& Message )
+bool UKIRCClient::PartChannel( const UKIRCChannel* const Channel, const FString& Message )
 {
 	if ( Channel == NULL )
 	{
@@ -1648,19 +1839,26 @@ bool UKIRCClient::PartChannel( UKIRCChannel* Channel, const FString& Message )
 		return false;
 	}
 
+	if ( !IsInChannel( Channel->GetName() ) )
+	{
+		KIRCLog( Error, "Tried to leave a channel we aren't in." );
+		return false;
+	}
+
 	if ( Message.Len() == 0 )
-		return Cmd( "PART %s", *Channel->GetName() );
+		return CmdScanTgt( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s", *Channel->GetName() );
 
 	else
-		return Cmd( "PART %s :%s", *Channel->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 7 - Channel->GetName().Len() ) );
+		return CmdScanTgt( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s :%s", *Channel->GetName(), 
+						   *Message.Left( UKIRCServer::MaxCommandLength - 7 - Channel->GetName().Len() ) );
 }
 
 
-bool UKIRCClient::InviteUserToChannel( UKIRCUser* User, UKIRCChannel* Channel )
+bool UKIRCClient::InviteUserToChannel( const FString& NickName, const UKIRCChannel* const Channel )
 {
-	if ( User == NULL )
+	if ( NickName.Len() == 0 )
 	{
-		KIRCLog( Error, "Tried to invite a null user." );
+		KIRCLog( Error, "Tried to invite a zero-length named user." );
 		return false;
 	}
 
@@ -1670,11 +1868,11 @@ bool UKIRCClient::InviteUserToChannel( UKIRCUser* User, UKIRCChannel* Channel )
 		return false;
 	}
 
-	return Cmd( "INVITE %s %s", *User->GetName(), *Channel->GetName() );
+	return CmdScanTgt( UKIRCInviteCommandResponseScanner::StaticClass(), NickName + "," + Channel->GetName(), "INVITE %s %s", *NickName, *Channel->GetName() );
 }
 
 
-bool UKIRCClient::KickUserFromChannel( UKIRCChannel* Channel, UKIRCUser* User, const FString& Message )
+bool UKIRCClient::KickUserFromChannel( const UKIRCChannel* const Channel, const UKIRCUser* const User, const FString& Message )
 {
 	if ( Channel == NULL )
 	{
@@ -1689,10 +1887,13 @@ bool UKIRCClient::KickUserFromChannel( UKIRCChannel* Channel, UKIRCUser* User, c
 	}
 
 	if ( Message.Len() == 0 )
-		return Cmd( "KICK %s %s", *Channel->GetName(), *User->GetName() );
+		return CmdScanTgt( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
+						   "KICK %s %s", *Channel->GetName(), *User->GetName() );
 
 	else
-		return Cmd( "KICK %s %s :%s", *Channel->GetName(), *User->GetName(), *Message.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() - User->GetName().Len() ) );
+		return CmdScanTgt( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
+						   "KICK %s %s :%s", *Channel->GetName(), *User->GetName(), 
+						   *Message.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() - User->GetName().Len() ) );
 }
 
 
@@ -1705,7 +1906,7 @@ void UKIRCClient::StartModeChangeBuilder()
 }
 
 
-bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange )
+bool UKIRCClient::ChangeChannelMode( const UKIRCChannel* const Channel, const UKIRCMode* const Mode, EKIRCModeChange ModeChange )
 {
 	if ( Mode == NULL )
 	{
@@ -1724,7 +1925,7 @@ bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKI
 		return Cmd(
 			"MODE %s %s%s",
 			*Channel->GetName(),
-			*( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
+			*FString( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
 			*Mode->GetMode()
 		);
 
@@ -1738,18 +1939,24 @@ bool UKIRCClient::ChangeChannelMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKI
 	}
 
 	if ( ModeChangeBuilderModeList.Len() == 0 || ModeChange != ModeChangeBuilderModeAction )
-		ModeChangeBuilderModeList += ModeChange == EKIRCModeChange::M_Add ? "+" : "-";
+		ModeChangeBuilderModeList += ( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" );
 
 	ModeChangeBuilderModeList += Mode->GetMode();
 	return true;
 }
 
 
-bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange, const FString& Param )
+bool UKIRCClient::ChangeChannelParamMode( const UKIRCChannel* const Channel, const UKIRCMode* const Mode, EKIRCModeChange ModeChange, const FString& Param )
 {
 	if ( Mode == NULL )
 	{
 		KIRCLog( Error, "Tried to change a null mode." );
+		return false;
+	}
+
+	if ( Mode->RequireParamForChange( ModeChange ) && Param.Len() == 0 )
+	{
+		KIRCLog( Error, "Tried to change mode without required parameter." );
 		return false;
 	}
 
@@ -1764,7 +1971,7 @@ bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode
 		return Cmd(
 			"MODE %s %s%s %s",
 			*Channel->GetName(),
-			*( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
+			*FString( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
 			*Mode->GetMode(),
 			*Param
 		);
@@ -1779,19 +1986,23 @@ bool UKIRCClient::ChangeChannelParamMode( UKIRCChannel* Channel, UKIRCMode* Mode
 	}
 
 	if ( ModeChangeBuilderModeList.Len() == 0 || ModeChange != ModeChangeBuilderModeAction )
-		ModeChangeBuilderModeList += ModeChange == EKIRCModeChange::M_Add ? "+" : "-";
+		ModeChangeBuilderModeList += ( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" );
 
 	ModeChangeBuilderModeList += Mode->GetMode();
 
-	if ( ModeChangeBuilderParamList.Len() > 0 )
-		ModeChangeBuilderParamList += " ";
+	if ( Mode->RequireParamForChange( ModeChange ) )
+	{
+		if ( ModeChangeBuilderParamList.Len() > 0 )
+			ModeChangeBuilderParamList += " ";
 
-	ModeChangeBuilderParamList += Param;
+		ModeChangeBuilderParamList += Param;
+	}
+
 	return true;
 }
 
 
-bool UKIRCClient::ChangeChannelUserMode( UKIRCChannel* Channel, UKIRCMode* Mode, EKIRCModeChange ModeChange, UKIRCUser* User )
+bool UKIRCClient::ChangeChannelUserMode( const UKIRCChannel* const Channel, const UKIRCMode* const Mode, EKIRCModeChange ModeChange, const UKIRCUser* const User )
 {
 	if ( Mode == NULL )
 	{
@@ -1809,7 +2020,7 @@ bool UKIRCClient::ChangeChannelUserMode( UKIRCChannel* Channel, UKIRCMode* Mode,
 }
 
 
-void UKIRCClient::FlushModeChanges( UKIRCChannel* Channel )
+void UKIRCClient::FlushModeChanges( const UKIRCChannel* const Channel )
 {
 	if ( Channel != NULL )
 	{
@@ -1828,7 +2039,7 @@ void UKIRCClient::FlushModeChanges( UKIRCChannel* Channel )
 }
 
 
-bool UKIRCClient::QueryObjectModes( UKIRCObject* Object )
+bool UKIRCClient::QueryObjectModes( const UKIRCObject* const Object )
 {
 	if ( Object == NULL )
 	{
@@ -1840,7 +2051,7 @@ bool UKIRCClient::QueryObjectModes( UKIRCObject* Object )
 }
 
 
-bool UKIRCClient::QueryChannelModeList( UKIRCChannel* Channel, UKIRCMode* Mode )
+bool UKIRCClient::QueryChannelModeList( const UKIRCChannel* const Channel, const UKIRCMode* const Mode )
 {
 	if ( Channel == NULL )
 	{
@@ -1860,7 +2071,7 @@ bool UKIRCClient::QueryChannelModeList( UKIRCChannel* Channel, UKIRCMode* Mode )
 		return false;
 	}
 
-	return Cmd( "MODE %s +%s", *Channel->GetName(), *Mode->GetName() );
+	return Cmd( "MODE %s %s", *Channel->GetName(), *Mode->GetMode() );
 }
 
 
@@ -1869,23 +2080,23 @@ bool UKIRCClient::ChangeNickname( const FString& NewName )
 	if ( NewName.Len() == 0 )
 		return false;
 
-	return Cmd( "NICK %s", *NewName );
+	return CmdScanTgt( UKIRCNickCommandResponseScanner::StaticClass(), NewName, "NICK %s", *NewName );
 }
 
 
-bool UKIRCClient::QueryTopic( UKIRCChannel* Channel )
+bool UKIRCClient::QueryTopic( const FString& Channel )
 {
-	if ( Channel == NULL )
+	if ( Channel.Len() == 0 )
 	{
-		KIRCLog( Error, "Tried to query the topic of a null channel." );
+		KIRCLog( Error, "Tried to query the topic of a zero-length channel." );
 		return false;
 	}
 
-	return Cmd( "TOPIC %s", *Channel->GetName() );
+	return CmdScanTgt( UKIRCTopicQueryCommandResponseScanner::StaticClass(), Channel, "TOPIC %s", *Channel );
 }
 
 
-bool UKIRCClient::SetTopic( UKIRCChannel* Channel, const FString& Body )
+bool UKIRCClient::SetTopic( const UKIRCChannel* const Channel, const FString& Body )
 {
 	if ( Channel == NULL )
 	{
@@ -1893,57 +2104,59 @@ bool UKIRCClient::SetTopic( UKIRCChannel* Channel, const FString& Body )
 		return false;
 	}
 
-	return Cmd( "TOPIC %s :%s", *Channel->GetName(), *Body.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() ) );
+	return CmdScanTgt( UKIRCTopicCommandResponseScanner::StaticClass(), Channel->GetName(), 
+					   "TOPIC %s :%s", *Channel->GetName(), 
+					   *Body.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() ) );
 }
 
 
 bool UKIRCClient::GetServerNameList()
 {
-	return Cmd( "NAMES" );
+	return CmdScan( UKIRCServerNameListCommandResponseScanner::StaticClass(), "NAMES" );
 }
 
 
-bool UKIRCClient::UpdateChannelNameList( UKIRCChannel* Channel )
+bool UKIRCClient::GetChannelNameList( const FString& Channel )
 {
-	if ( Channel == NULL )
+	if ( Channel.Len() )
 	{
-		KIRCLog( Error, "Tried to set name list of a null channel." );
+		KIRCLog( Error, "Tried to set name list of a zero-length channel." );
 		return false;
 	}
 
-	return Cmd( "NAMES %s", *Channel->GetName() );
+	return CmdScanTgt( UKIRCChannelNameListCommandResponseScanner::StaticClass(), Channel, "NAMES %s", *Channel );
 }
 
 
-bool UKIRCClient::ChannelList( const FString& Mask )
+bool UKIRCClient::ListChannels( const FString& Mask )
 {
 	if ( Mask.Len() == 0 )
-		return Cmd( "LIST" );
+		return CmdScan( UKIRCListCommandResponseScanner::StaticClass(), "LIST" );
 
 	else
-		return Cmd( "LIST %s", *Mask.Left( UKIRCServer::MaxCommandLength - 5 ) );
+		return CmdScan( UKIRCListCommandResponseScanner::StaticClass(), "LIST %s", *Mask.Left( UKIRCServer::MaxCommandLength - 5 ) );
 }
 
 
 bool UKIRCClient::Who( const FString& Mask )
 {
 	if ( Mask.Len() == 0 )
-		return Cmd( "WHO" );
+		return CmdScan( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO" );
 
 	else
-		return Cmd( "WHO %s", *Mask );
+		return CmdScan( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO %s", *Mask );
 }
 
 
-bool UKIRCClient::WhoIs( UKIRCUser* User )
+bool UKIRCClient::WhoIs( const FString& Name )
 {
-	if ( User == NULL )
+	if ( Name.Len() == 0 )
 	{
-		KIRCLog( Error, "Trying to whois a null user." );
+		KIRCLog( Error, "Trying to whois a zero-length nick name." );
 		return false;
 	}
 
-	return Cmd( "WHOIS %s", *User->GetName() );
+	return CmdScanTgt( UKIRCWhoIsCommandResponseScanner::StaticClass(), Name, "WHOIS %s", *Name );
 }
 
 
@@ -1955,19 +2168,37 @@ bool UKIRCClient::WhoWas( const FString& Name )
 		return false;
 	}
 
-	return Cmd( "WHOWAS %s", *Name );
+	return CmdScanTgt( UKIRCWhoWasCommandResponseScanner::StaticClass(), Name, "WHOWAS %s", *Name );
 }
 
 
 bool UKIRCClient::Away( const FString& Message )
 {
-	return Cmd( "AWAY :%s", *Message );
+	// Force use of away message.
+	return CmdScan( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY :%s", *( Message.Len() > 0 ? Message : "Away" ) );
 }
 
 
 bool UKIRCClient::Return()
 {
-	return Cmd( "AWAY" );
+	return CmdScan( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY" );
+}
+
+
+bool UKIRCClient::AreUsersOnline( const TArray<FString>& NickNames )
+{
+	if ( NickNames.Num() == 0 )
+	{
+		KIRCLog( Error, "Trying to check if no users are online." );
+		return false;
+	}
+
+	FString NickList = "";
+
+	for ( const FString& Nick : NickNames )
+		NickList += ( NickList.Len() > 0 ? " " : "" ) + Nick;
+	
+	return CmdScan( UKIRCIsOnCommandResponseScanner::StaticClass(), "ISON %s", *NickList );
 }
 
 

@@ -12,7 +12,7 @@ AKIRCActor::AKIRCActor( const class FObjectInitializer& ObjectInitializer )
 }
 
 
-UKIRCActorComponent* AKIRCActor::GetKeshIRCComponent() const
+UKIRCActorComponent* const AKIRCActor::GetKeshIRCComponent() const
 {
 	return IRCComponent;
 }

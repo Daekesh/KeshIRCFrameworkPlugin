@@ -25,10 +25,31 @@ public:
 	virtual void StartScan( UKIRCClient* Server );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
-	virtual bool IsComplete() const { return bComplete;  }
+	virtual bool IsComplete() const { return State != EKIRCCommandState::S_Waiting;  }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	bool WasSuccessful() const { return State == EKIRCCommandState::S_Success; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	EKIRCCommandState GetState() const { return State; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	const FString& GetResult() const { return Result; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	const FString& GetCommand() const { return Command; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	void SetCommand( const FString& Command ) { this->Command = Command; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	const FString& GetTarget() const { return Target; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	void SetTarget( const FString& Target ) { this->Target = Target; }
 
 	UFUNCTION()
-	void CommandCallback( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
+	void CommandCallback( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintNativeEvent )
 	void HandleCommand( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
@@ -44,8 +65,8 @@ public:
 
 protected:
 
-	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", EditInstanceOnly, BlueprintReadWrite )
-	bool bComplete;
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
+	FString Command;
 
 	// Default list of commands to register for callbacks on. Registers the HandleCommand function.
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", EditAnywhere, BlueprintReadOnly )
@@ -54,7 +75,20 @@ protected:
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
 	UKIRCClient* Client;
 
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
+	FString Target;	
+
+private:
+
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly )
+	EKIRCCommandState State;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly )
+	FString Result;
+
 	TMap<FString, FDelegateHandle> RegisteredCallbacks;
+
+protected:
 
 	virtual void RegisterCallbacks();
 
@@ -63,5 +97,68 @@ protected:
 	virtual void RemoveRegisteredCallbacks();
 
 	void UnregisterCallback( const FString& Command, FDelegateHandle Handle );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual void Fail( const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual void Success();
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNoSuchNick( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNoSuchChannel( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorUnAvailResource( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNotOnChannel( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNeedMoreParams( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorChanOPrivsNeeded( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorTooManyChannels( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorTooManyTargets( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorChannelIsFull( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorInviteOnlyChan( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorBannedFromChan( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorBadChannelKey( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorUserOnChannel( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorUserNotInChannel( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorErroneusNickname( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNickNameInUse( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNickCollision( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorWasNoSuchNick( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool ErrorNoChanModes( UKIRCUser* Source, const TArray<FString>& Params, const FString& Message );
 
 };

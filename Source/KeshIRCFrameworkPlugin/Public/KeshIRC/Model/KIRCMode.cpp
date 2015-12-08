@@ -9,5 +9,17 @@ UKIRCMode::UKIRCMode( const class FObjectInitializer& ObjectInitializer )
 {
 	Mode = "";
 	Type = EKIRCModeType::T_None;
+	ParamRequired = EKIRCModeParamRequired::R_Never;
 }
 
+
+bool UKIRCMode::RequireParamForChange( EKIRCModeChange ModeChange ) const
+{
+	if ( ParamRequired == EKIRCModeParamRequired::R_Never )
+		return false;
+
+	if ( ModeChange == EKIRCModeChange::M_Add )
+		return true;
+
+	return ( ParamRequired == EKIRCModeParamRequired::R_Always );
+}

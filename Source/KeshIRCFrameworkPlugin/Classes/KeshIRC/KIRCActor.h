@@ -19,7 +19,7 @@ public:
 	AKIRCActor( const class FObjectInitializer& ObjectInitializer );
 
 	UFUNCTION( Category = "KeshIRC|Actor", BlueprintCallable )
-	UKIRCActorComponent* GetKeshIRCComponent() const;
+	UKIRCActorComponent* const GetKeshIRCComponent() const;
 
 protected:
 

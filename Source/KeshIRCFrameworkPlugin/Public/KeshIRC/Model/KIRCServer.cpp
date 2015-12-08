@@ -24,7 +24,6 @@ UKIRCServer::UKIRCServer( const class FObjectInitializer& ObjectInitializer )
 	Version = "";
 	Client = NULL;
 	State = EKIRCServerState::S_Disconnected;
-	bSocketConnecting = false;
 	HostResolver = NULL;
 	HostAddr.Reset();
 	Ticker = NULL;
@@ -102,7 +101,7 @@ void UKIRCServer::Reset()
 	}
 	
 	Disconnect();
-
+	State = EKIRCServerState::S_Disconnected;
 	NetworkName = "";
 	Version = "";
 	HostActual = "";
@@ -111,7 +110,6 @@ void UKIRCServer::Reset()
 	UserModes.Empty();
 	ChannelModes.Empty();
 	Settings.Empty();
-	bSocketConnecting = false;
 	
 	if ( HostAddr.IsValid() )
 	{
@@ -120,7 +118,7 @@ void UKIRCServer::Reset()
 	}
 
 	if ( Client != NULL && Client->GetUser() != NULL && Client->GetUser()->GetName().Len() > 0 )
-		Users.Emplace( Client->GetUser()->GetName(), Client->GetUser() );
+		Users.Emplace( Client->GetUser()->GetName().ToUpper(), Client->GetUser() );
 }
 
 
@@ -139,7 +137,7 @@ bool UKIRCServer::Connect()
 	Socket = SocketSub->CreateSocket( NAME_Stream, "KIRC Server Connection" );
 	Socket->SetNonBlocking( true );
 
-	SetState( EKIRCServerState::S_Connecting );
+	SetState( EKIRCServerState::S_ConnectionRequested );
 	return true;
 }
 
@@ -175,7 +173,7 @@ const FString& UKIRCServer::GetSetting( const FString& Setting ) const
 
 
 
-UKIRCChannel* UKIRCServer::GetChannelByName( const FString& Name ) const
+UKIRCChannel* const UKIRCServer::GetChannelByName( const FString& Name ) const
 {
 	if ( Name.Len() == 0 )
 	{
@@ -195,14 +193,14 @@ UKIRCChannel* UKIRCServer::GetChannelByName( const FString& Name ) const
 		return NULL;
 	}
 
-	if ( !Channels.Contains( Name ) )
+	if ( !Channels.Contains( Name.ToUpper() ) )
 		return NULL;
 
-	return Channels[ Name ];
+	return Channels[ Name.ToUpper() ];
 }
 
 
-UKIRCChannel* UKIRCServer::EnsureChannel( const FString& Name )
+UKIRCChannel* const UKIRCServer::EnsureChannel( const FString& Name )
 {
 	if ( Name.Len() == 0 )
 	{
@@ -228,14 +226,14 @@ UKIRCChannel* UKIRCServer::EnsureChannel( const FString& Name )
 	{
 		Channel = NewObject<UKIRCChannel>( this );
 		Channel->InitChannel( Name );
-		Channels.Emplace( Name, Channel );
+		Channels.Emplace( Name.ToUpper(), Channel );
 	}
 
 	return Channel;
 }
 
 
-UKIRCUser* UKIRCServer::GetUserByName( const FString& Name ) const
+UKIRCUser* const UKIRCServer::GetUserByName( const FString& Name ) const
 {
 	if ( Name.Len() == 0 )
 	{
@@ -249,14 +247,14 @@ UKIRCUser* UKIRCServer::GetUserByName( const FString& Name ) const
 		return NULL;
 	}
 
-	if ( !Users.Contains( Name ) )
+	if ( !Users.Contains( Name.ToUpper() ) )
 		return NULL;
 
-	return Users[ Name ];
+	return Users[ Name.ToUpper() ];
 }
 
 
-UKIRCUser* UKIRCServer::EnsureUser( const FString& Name, const FString& Ident, const FString& Host )
+UKIRCUser* const UKIRCServer::EnsureUser( const FString& Name, const FString& Ident, const FString& Host )
 {
 	if ( Name.Len() == 0 )
 	{
@@ -276,14 +274,14 @@ UKIRCUser* UKIRCServer::EnsureUser( const FString& Name, const FString& Ident, c
 	{
 		User = NewObject<UKIRCUser>( this );
 		User->InitUser( Name, Ident, Host );
-		Users.Emplace( Name, User );
+		Users.Emplace( Name.ToUpper(), User );
 	}
 
 	return User;
 }
 
 
-void UKIRCServer::RenameUser( UKIRCUser* User, const FString& NewName )
+void UKIRCServer::OnUserNameChange( UKIRCUser* const User, const FString& NewName )
 {
 	if ( User == NULL )
 	{
@@ -297,19 +295,21 @@ void UKIRCServer::RenameUser( UKIRCUser* User, const FString& NewName )
 		return;
 	}
 
+	// Won't be true when first created.
+	/*
 	if ( !Users.Contains( User->GetName() ) )
 	{
 		KIRCLog( Error, "Trying to remove a user not in the map." );
 		return;
 	}
+	*/
 
-	Users.Remove( User->GetName() );
-	Users.Emplace( NewName, User );
-	User->SetName( NewName );
+	Users.Remove( User->GetName().ToUpper() );
+	Users.Emplace( NewName.ToUpper(), User );
 }
 
 
-void UKIRCServer::RemoveUser( UKIRCUser* User )
+void UKIRCServer::RemoveUser( const UKIRCUser* const User )
 {
 	if ( User == NULL )
 	{
@@ -317,16 +317,16 @@ void UKIRCServer::RemoveUser( UKIRCUser* User )
 		return;
 	}
 
-	Users.Remove( User->GetName() );
+	Users.Remove( User->GetName().ToUpper() );
 
-	TArray<UKIRCChannel*> Channels = User->GetChannels();
+	const TArray<UKIRCChannel*> Channels = User->GetChannels();
 
-	for ( UKIRCChannel* Channel : Channels )
-		Channel->UserLeft( User );
+	for ( UKIRCChannel* const Channel : Channels )
+		Channel->UserLeft( const_cast< UKIRCUser* >( User ) );
 }
 
 
-void UKIRCServer::RemoveChannel( UKIRCChannel* Channel )
+void UKIRCServer::RemoveChannel( UKIRCChannel* const Channel )
 {
 	if ( Channel == NULL )
 	{
@@ -334,11 +334,11 @@ void UKIRCServer::RemoveChannel( UKIRCChannel* Channel )
 		return;
 	}
 
-	Channels.Remove( Channel->GetName() );
+	Channels.Remove( Channel->GetName().ToUpper() );
 
-	TArray<UKIRCUser*> Users = Channel->GetUsers();
+	const TArray<UKIRCUser*> Users = Channel->GetUsers();
 
-	for ( UKIRCUser* User : Users )
+	for ( UKIRCUser* const User : Users )
 		Channel->UserLeft( User );
 }
 
@@ -381,7 +381,7 @@ void UKIRCServer::ParseLine( const FString& Line )
 		return;
 	}
 
-	static FRegexPattern Pattern = FRegexPattern( "^:(([^!@ ]+)(!([^@ ]+))?(@([^ ]+))?) ([^: ]+)(( [^: ]+)*)?( :(.*))?$" );
+	static const FRegexPattern Pattern = FRegexPattern( "^:(([^!@ ]+)(!([^@ ]+))?(@([^ ]+))?) ([^: ]+)(( [^: ]+)*)?( :(.*))?$" );
 	FRegexMatcher Matcher = FRegexMatcher( Pattern, Line );
 
 	if ( !Matcher.FindNext() )
@@ -391,7 +391,7 @@ void UKIRCServer::ParseLine( const FString& Line )
 		return;
 	}
 
-	FString SourceName = Matcher.GetCaptureGroup( 2 );
+	const FString SourceName = Matcher.GetCaptureGroup( 2 );
 
 	if ( SourceName.Len() == 0 )
 	{
@@ -400,12 +400,12 @@ void UKIRCServer::ParseLine( const FString& Line )
 		return;
 	}
 
-	FString SourceMask = Matcher.GetCaptureGroup( 1 );
-	FString SourceIdent = Matcher.GetCaptureGroup( 4 );
-	FString SourceHost = Matcher.GetCaptureGroup( 6 );
-	FString Command = Matcher.GetCaptureGroup( 7 ).ToUpper();
-	FString ParamString = Matcher.GetCaptureGroup( 8 ).Trim().TrimTrailing();
-	FString Message = Matcher.GetCaptureGroup( 11 );
+	const FString SourceMask = Matcher.GetCaptureGroup( 1 );
+	const FString SourceIdent = Matcher.GetCaptureGroup( 4 );
+	const FString SourceHost = Matcher.GetCaptureGroup( 6 );
+	const FString Command = Matcher.GetCaptureGroup( 7 ).ToUpper();
+	const FString ParamString = Matcher.GetCaptureGroup( 8 ).Trim().TrimTrailing();
+	const FString Message = Matcher.GetCaptureGroup( 11 );
 	UKIRCUser* Source = NULL;
 
 	if ( SourceIdent.Len() > 0 && SourceHost.Len() > 0 )
@@ -498,7 +498,7 @@ void UKIRCServer::OnConnectionError( const FString& Reason )
 }
 
 
-UKIRCMode* UKIRCServer::AddUserMode( const FString& ModeCharacter )
+const UKIRCMode* const UKIRCServer::AddUserMode( const FString& ModeCharacter )
 {
 	if ( ModeCharacter.Len() != 1 )
 	{
@@ -506,7 +506,7 @@ UKIRCMode* UKIRCServer::AddUserMode( const FString& ModeCharacter )
 		return NULL;
 	}
 
-	UKIRCMode* NewMode = NewObject<UKIRCMode>( this );
+	UKIRCMode* const NewMode = NewObject<UKIRCMode>( this );
 	NewMode->InitMode( ModeCharacter, EKIRCModeType::T_User );
 
 	UserModes.Emplace( ModeCharacter, NewMode );
@@ -515,7 +515,7 @@ UKIRCMode* UKIRCServer::AddUserMode( const FString& ModeCharacter )
 }
 
 
-UKIRCMode* UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType )
+const UKIRCMode* const UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeType ModeType, EKIRCModeParamRequired ParamRequired )
 {
 	if ( ModeCharacter.Len() != 1 )
 	{
@@ -523,9 +523,9 @@ UKIRCMode* UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeT
 		return NULL;
 	}
 
-	UKIRCMode* NewMode = NewObject<UKIRCMode>( this );
-	NewMode->InitMode( ModeCharacter, ModeType );
-
+	UKIRCMode* const NewMode = NewObject<UKIRCMode>( this );
+	NewMode->InitMode( ModeCharacter, ModeType, ParamRequired );
+	
 	switch ( ModeType )
 	{
 		// New object should be immediately gc'd!
@@ -539,6 +539,7 @@ UKIRCMode* UKIRCServer::AddChannelMode( const FString& ModeCharacter, EKIRCModeT
 		case EKIRCModeType::T_Channel_Param:
 		case EKIRCModeType::T_Channel_List:
 		case EKIRCModeType::T_Channel_User:
+			// Only key requires the param to be present to remove
 			ChannelModes.Emplace( ModeCharacter, NewMode );
 	}
 
@@ -556,48 +557,49 @@ void UKIRCServer::Tick()
 
 		// We've not yet connected, so need to try to resolve the address, if we have to.
 		case EKIRCServerState::S_Disconnected:
-			if ( HostResolver == NULL )
-				return;
-
-			if ( !HostResolver->IsComplete() )
-				return;
-
-			if ( HostResolver->GetErrorCode() == SE_NO_ERROR )
-			{
-				uint32 iIntIp;
-				HostResolver->GetResolvedAddress().GetIp( iIntIp );
-				HostAddr->SetIp( iIntIp );
-				KIRCLog( Log, "Host resolved." );
-			}
-
-			else
-			{
-				KIRCLog( Error, "Unable to resolve host address." );
-				SetState( EKIRCServerState::S_Error );
-			}
-
-			delete HostResolver;
-			HostResolver = NULL;
-			return;
-
 		// Wait for the ip to be resolved and connect the socket.
-		case EKIRCServerState::S_Connecting:
+		case EKIRCServerState::S_ConnectionRequested:
+			uint32 iInetIp;
+			HostAddr->GetIp( iInetIp );
+
+			// Wait for the host to be resolved.
+			if ( iInetIp == 0 )
+			{
+				if ( HostResolver == NULL )
+					return;
+
+				if ( !HostResolver->IsComplete() )
+					return;
+
+				if ( HostResolver->GetErrorCode() == SE_NO_ERROR )
+				{
+					uint32 iIntIp;
+					HostResolver->GetResolvedAddress().GetIp( iIntIp );
+					HostAddr->SetIp( iIntIp );
+					KIRCLog( Log, "Host resolved." );
+				}
+
+				else
+				{
+					KIRCLog( Error, "Unable to resolve host address." );
+					SetState( EKIRCServerState::S_Error );
+				}
+
+				delete HostResolver;
+				HostResolver = NULL;
+				return;
+			}
+
+			// We haven't requested connection, so don't.
+			if ( State != EKIRCServerState::S_ConnectionRequested )
+				return;
+
 			if ( Socket == NULL )
 				return;
 
 			switch ( Socket->GetConnectionState() )
 			{
 				case SCS_NotConnected:
-					if ( bSocketConnecting )
-						return;
-
-					uint32 iInetIp;
-					HostAddr->GetIp( iInetIp );
-
-					// Wait for the host to be resolved.
-					if ( iInetIp == 1 )
-						return;
-
 					KIRCLog( Log, "Connecting..." );
 
 					if ( !Socket->Connect( *HostAddr ) )
@@ -611,27 +613,34 @@ void UKIRCServer::Tick()
 					}
 
 					ReadBuffer = "";
-					bSocketConnecting = true;
+					State = EKIRCServerState::S_Connecting;
 					return;
 
-				// Should never reach this point, but just in case.
+				default:
+					return;
+			}
+
+		case EKIRCServerState::S_Connecting:
+			if ( Socket == NULL )
+				return;
+
+			switch ( Socket->GetConnectionState() )
+			{
 				case SCS_ConnectionError:
 					KIRCLog( Error, "Unable to connect to server." );
 					Socket->Close();
 					delete Socket;
 					Socket = NULL;
-					bSocketConnecting = false;
 					OnConnectionError( "Socket failed to connect." );
 					return;
 
-				// Should never reach this point, but just in case.
 				case SCS_Connected:
-					bSocketConnecting = false;
 					OnConnected();
 					return;
-			}
 
-			return;			
+				default:
+					return;
+			}
 
 		// Read data from the socket into the buffer.
 		case EKIRCServerState::S_Connected:
@@ -669,7 +678,7 @@ void UKIRCServer::Tick()
 
 					for ( int32 i = 0; i < iRead; ++i )
 					{
-						TCHAR Char = static_cast< TCHAR >( SocketBuffer[ i ] );
+						const TCHAR Char = static_cast< TCHAR >( SocketBuffer[ i ] );
 
 						if ( Char == '\r' )
 							continue;

@@ -19,7 +19,7 @@ UKIRCActorComponent::UKIRCActorComponent( const class FObjectInitializer& Object
 	RealName = "";
 	ClientClass = UKIRCClient::StaticClass();
 	Client = NULL;
-	MessageHandlers.SetNum( 0 );
+	MessageHandlerClasses.SetNum( 0 );
 }
 
 
@@ -45,5 +45,14 @@ bool UKIRCActorComponent::Initialize()
 		return false;
 	}
 
-	return Client->InitClient( ServerName, Host, Port, ServerPassword, NickName, Ident, RealName, AlternateNickNames );
+	if ( !Client->InitClient( ServerName, Host, Port, ServerPassword, NickName, Ident, RealName, AlternateNickNames ) )
+	{
+		KIRCLog( Error, "Failed to init client." );
+		return false;
+	}
+
+	for ( TSubclassOf<UKIRCBlueprintMessageHandler> BlueprintMessageHandlerClass : MessageHandlerClasses )
+		Client->CreateMessageHandler( BlueprintMessageHandlerClass, true, true );
+
+	return true;
 }

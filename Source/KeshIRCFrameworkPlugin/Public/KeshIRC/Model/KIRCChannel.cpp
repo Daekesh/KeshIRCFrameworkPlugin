@@ -2,6 +2,7 @@
 
 #include "Private/KeshIRCFrameworkPluginPrivatePCH.h"
 #include "KeshIRC/Model/KIRCServer.h"
+#include "KeshIRC/Controller/KIRCClient.h"
 #include "KeshIRC/Model/KIRCUser.h"
 #include "KeshIRC/Model/KIRCChannel.h"
 
@@ -12,6 +13,7 @@ UKIRCChannel::UKIRCChannel( const class FObjectInitializer& ObjectInitializer )
 	TopicBody = "";
 	TopicAuthor = "";
 	TopicDate = FDateTime( 0 );
+	Created = FDateTime( 0 );
 	Modes.SetNum( 0 );
 	ModeLists.Empty();
 	Limit = 0;
@@ -35,9 +37,9 @@ void UKIRCChannel::InitChannel( const FString& Name )
 }
 
 
-const FKIRCChannelUserInfo& UKIRCChannel::GetChannelUserInfo( UKIRCUser* User )
+const FKIRCChannelUserInfo& UKIRCChannel::GetChannelUserInfo( const UKIRCUser* const User ) const
 {
-	static FKIRCChannelUserInfo DefaultReturnValue = { NULL, NULL, FDateTime( 0 ), TArray<UKIRCMode*>() };
+	static const FKIRCChannelUserInfo DefaultReturnValue = { NULL, NULL, FDateTime( 0 ), TArray<UKIRCMode*>() };
 	
 	if ( User == NULL )
 	{
@@ -54,7 +56,7 @@ const FKIRCChannelUserInfo& UKIRCChannel::GetChannelUserInfo( UKIRCUser* User )
 
 bool UKIRCChannel::HasUserLimit() const
 {
-	UKIRCServer* Server = GetServer();
+	const UKIRCServer* const Server = GetServer();
 
 	if ( Server == NULL )
 	{
@@ -62,7 +64,7 @@ bool UKIRCChannel::HasUserLimit() const
 		return false;
 	}
 
-	UKIRCMode* KeyMode = Server->GetChannelMode( MODE_CHANNEL_USER_LIMIT );
+	const UKIRCMode* const KeyMode = Server->GetChannelMode( UKIRCClient::GetModes().Channel.UserLimit );
 
 	if ( KeyMode == NULL )
 		return false;
@@ -73,7 +75,7 @@ bool UKIRCChannel::HasUserLimit() const
 
 bool UKIRCChannel::IsJoinKeySet() const
 {
-	UKIRCServer* Server = GetServer();
+	const UKIRCServer* const Server = GetServer();
 
 	if ( Server == NULL )
 	{
@@ -81,7 +83,7 @@ bool UKIRCChannel::IsJoinKeySet() const
 		return false;
 	}
 
-	UKIRCMode* KeyMode = Server->GetChannelMode( MODE_CHANNEL_KEY );
+	const UKIRCMode* const KeyMode = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Key );
 
 	if ( KeyMode == NULL )
 		return false;
@@ -90,9 +92,9 @@ bool UKIRCChannel::IsJoinKeySet() const
 }
 
 
-const TArray<FString>& UKIRCChannel::GetChannelModeListValues( UKIRCMode* Mode ) const
+const TArray<FString>& UKIRCChannel::GetChannelModeListValues( const UKIRCMode* const Mode ) const
 {
-	static TArray<FString> DefaultReturnValue = TArray<FString>();
+	static const TArray<FString> DefaultReturnValue = TArray<FString>();
 
 	if ( Mode == NULL )
 	{
@@ -107,7 +109,7 @@ const TArray<FString>& UKIRCChannel::GetChannelModeListValues( UKIRCMode* Mode )
 }
 
 
-void UKIRCChannel::UserJoined( UKIRCUser* User, bool bZeroTime = false )
+void UKIRCChannel::UserJoined( UKIRCUser* const User, bool bZeroTime )
 {
 	if ( User == NULL )
 	{
@@ -127,7 +129,7 @@ void UKIRCChannel::UserJoined( UKIRCUser* User, bool bZeroTime = false )
 }
 
 
-void UKIRCChannel::UserLeft( UKIRCUser* User )
+void UKIRCChannel::UserLeft( UKIRCUser* const User )
 {
 	if ( User == NULL )
 	{
@@ -146,7 +148,7 @@ void UKIRCChannel::UserLeft( UKIRCUser* User )
 }
 
 
-void UKIRCChannel::AddUnaryMode( UKIRCMode* Mode )
+void UKIRCChannel::AddUnaryMode( const UKIRCMode* const Mode )
 {
 	if ( Mode == NULL )
 	{
@@ -160,11 +162,11 @@ void UKIRCChannel::AddUnaryMode( UKIRCMode* Mode )
 		return;
 	}
 
-	Modes.Add( Mode );
+	Modes.AddUnique( const_cast< UKIRCMode* >( Mode ) );
 }
 
 
-void UKIRCChannel::RemoveUnaryMode( UKIRCMode* Mode )
+void UKIRCChannel::RemoveUnaryMode( const UKIRCMode* const Mode )
 {
 	if ( Mode == NULL )
 	{
@@ -178,11 +180,11 @@ void UKIRCChannel::RemoveUnaryMode( UKIRCMode* Mode )
 		return;
 	}
 
-	Modes.Remove( Mode );
+	Modes.Remove( const_cast< UKIRCMode* >( Mode ) );
 }
 
 
-void UKIRCChannel::AddListModeEntry( UKIRCMode* Mode, const FString& Entry )
+void UKIRCChannel::AddListModeEntry( const UKIRCMode* const Mode, const FString& Entry )
 {
 	if ( Mode == NULL )
 	{
@@ -199,7 +201,7 @@ void UKIRCChannel::AddListModeEntry( UKIRCMode* Mode, const FString& Entry )
 	if ( !ModeLists.Contains( Mode ) )
 	{
 		FKIRCModeListContainer Entries;
-		ModeLists.Emplace( Mode, Entries );
+		ModeLists.Emplace( const_cast< UKIRCMode* >( Mode ), Entries );
 	}
 
 	ModeLists[ Mode ].List.Add( Entry );
@@ -207,7 +209,7 @@ void UKIRCChannel::AddListModeEntry( UKIRCMode* Mode, const FString& Entry )
 
 
 
-void UKIRCChannel::RemoveListModeEntry( UKIRCMode* Mode, const FString& Entry )
+void UKIRCChannel::RemoveListModeEntry( const UKIRCMode* const Mode, const FString& Entry )
 {
 	if ( Mode == NULL )
 	{
@@ -234,7 +236,7 @@ void UKIRCChannel::RemoveListModeEntry( UKIRCMode* Mode, const FString& Entry )
 }
 
 
-void UKIRCChannel::AddUserMode( UKIRCUser* User, UKIRCMode* Mode )
+void UKIRCChannel::AddUserMode( const UKIRCUser* const User, const UKIRCMode* const Mode )
 {
 	if ( User == NULL )
 	{
@@ -254,11 +256,11 @@ void UKIRCChannel::AddUserMode( UKIRCUser* User, UKIRCMode* Mode )
 		return;
 	}
 
-	Users[ User ].Modes.Add( Mode );
+	Users[ User ].Modes.AddUnique( const_cast< UKIRCMode* >( Mode ) );
 }
 
 
-void UKIRCChannel::RemoveUserMode( UKIRCUser* User, UKIRCMode* Mode )
+void UKIRCChannel::RemoveUserMode( const UKIRCUser* const User, const UKIRCMode* const Mode )
 {
 	if ( User == NULL )
 	{
@@ -272,11 +274,11 @@ void UKIRCChannel::RemoveUserMode( UKIRCUser* User, UKIRCMode* Mode )
 		return;
 	}
 
-	if ( Users.Contains( User ) )
+	if ( !Users.Contains( User ) )
 	{
 		KIRCLog( Error, "Trying remove a mode to a user not in the channel." );
 		return;
 	}
 
-	Users[ User ].Modes.Remove( Mode );
+	Users[ User ].Modes.Remove( const_cast< UKIRCMode* >( Mode ) );
 }

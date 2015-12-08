@@ -17,7 +17,7 @@ class KESHIRCFRAMEWORKPLUGIN_API UKIRCObject : public UObject
 public:
 
 	UFUNCTION( Category = "KeshIRC|Model|Object", BlueprintCallable )
-	UKIRCServer* GetServer() const;
+	UKIRCServer* const GetServer() const;
 
 	UFUNCTION( Category = "KeshIRC|Model|Object", BlueprintCallable )
 	const FString& GetName() const { return Name; }

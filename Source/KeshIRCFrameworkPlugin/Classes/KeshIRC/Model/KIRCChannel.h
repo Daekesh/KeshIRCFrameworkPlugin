@@ -17,7 +17,7 @@ class KESHIRCFRAMEWORKPLUGIN_API UKIRCChannel : public UKIRCObject
 
 public:
 
-	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
+	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable, BlueprintPure )
 	static bool HasChannelPrefix( const FString& ObjectName );
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
@@ -27,10 +27,15 @@ public:
 	const FString& GetTopicAuthor() const { return TopicAuthor; }
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
+	FDateTime GetTopicDateBP() const { return TopicDate; }
 	const FDateTime& GetTopicDate() const { return TopicDate; }
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
 	bool HasTopic() const { return TopicDate.GetTicks() == 0; }
+
+	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
+	FDateTime GetCreationDateBP() const { return Created; }
+	const FDateTime& GetCreationDate() const { return Created; }
 
 	// Get the number of users in this channel
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
@@ -38,11 +43,21 @@ public:
 
 	// Returns true if the given user is in the channel;
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	bool HasUser( UKIRCUser* User ) const { return User == NULL ? false : Users.Contains( User ); }
+	bool HasUser( const UKIRCUser* const User ) const { return User == NULL ? false : Users.Contains( User ); }
 
 	// Returns the Channel User Info for this channel and the given user.
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	const FKIRCChannelUserInfo& GetChannelUserInfo( UKIRCUser* User );
+	FKIRCChannelUserInfo GetChannelUserInfoBP( const UKIRCUser* const User ) const { return GetChannelUserInfo( User ); }
+	const FKIRCChannelUserInfo& GetChannelUserInfo( const UKIRCUser* const User ) const;
+
+	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
+	bool DoesUserHaveJoinTime( const UKIRCUser* const User ) const
+	{
+		if ( !Users.Contains( User ) )
+			return false;
+
+		return ( Users[ User ].JoinTime.GetTicks() != 0 );
+	}
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
 	TArray<UKIRCUser*> GetUsers() const 
@@ -72,10 +87,19 @@ public:
 
 	// Returns true if the given mode is set on this channel;
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	bool IsChannelModeSet( UKIRCMode* Mode ) const { return Mode == NULL ? false : Modes.Contains( Mode ); }
+	bool IsChannelModeSet( const UKIRCMode* const Mode ) const { return Mode == NULL ? false : Modes.Contains( Mode ); }
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	const TArray<UKIRCMode*>& GeChannelModes() const { return Modes; }
+	TArray<UKIRCMode*> GetChannelModesBP() const
+	{
+		TArray<UKIRCMode*> ModeArray;
+
+		for ( const UKIRCMode* const Mode : Modes )
+			ModeArray.Add( const_cast< UKIRCMode* >( Mode ) );
+
+		return ModeArray;
+	}
+	const TArray<const UKIRCMode*>& GeChannelModes() const { return Modes; }
 
 	// Get the number of modes set without parameters set on this channel
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
@@ -83,7 +107,7 @@ public:
 
 	// Returns true if the given mode is set on this channel;
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	bool HasChannelModeList( UKIRCMode* Mode ) const { return Mode == NULL ? false : ModeLists.Contains( Mode ); }
+	bool HasChannelModeList( const UKIRCMode* const Mode ) const { return Mode == NULL ? false : ModeLists.Contains( Mode ); }
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
 	TArray<UKIRCMode*> GetChannelModeListModes() const
@@ -94,7 +118,8 @@ public:
 	}
 
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable )
-	const TArray<FString>& GetChannelModeListValues( UKIRCMode* Mode ) const;
+	TArray<FString> GetChannelModeListValuesBP( const UKIRCMode* const Mode ) const { return GetChannelModeListValues( Mode ); }
+	const TArray<FString>& GetChannelModeListValues( const UKIRCMode* const Mode ) const;
 
 	const TMap<UKIRCMode*, FKIRCModeListContainer>& GetChannelModeLists() const { return ModeLists; }
 
@@ -124,7 +149,10 @@ protected:
 	FDateTime TopicDate;
 
 	UPROPERTY( Category = "KeshIRC|Model|Mode", VisibleInstanceOnly )
-	TArray<UKIRCMode*> Modes;
+	FDateTime Created;
+
+	UPROPERTY( Category = "KeshIRC|Model|Mode", VisibleInstanceOnly )
+	TArray<const UKIRCMode*> Modes;
 
 	UPROPERTY( /*Category = "KeshIRC|Model|Mode", VisibleInstanceOnly*/ )
 	TMap<UKIRCMode*, FKIRCModeListContainer> ModeLists;
@@ -148,24 +176,26 @@ protected:
 
 	virtual void SetTopicDate( const FDateTime& Date ) { TopicDate = Date; }
 
-	virtual void UserJoined( UKIRCUser* User, bool bZeroTime = false );
+	virtual void SetCreated( const FDateTime& Date ) { Created = Date; }
 
-	virtual void UserLeft( UKIRCUser* User );
+	virtual void UserJoined( UKIRCUser* const User, bool bZeroTime = false );
 
-	virtual void AddUnaryMode( UKIRCMode* Mode );
+	virtual void UserLeft( UKIRCUser* const User );
 
-	virtual void RemoveUnaryMode( UKIRCMode* Mode );
+	virtual void AddUnaryMode( const UKIRCMode* const Mode );
 
-	virtual void AddListModeEntry( UKIRCMode* Mode, const FString& Entry );
+	virtual void RemoveUnaryMode( const UKIRCMode* const Mode );
+
+	virtual void AddListModeEntry( const UKIRCMode* const Mode, const FString& Entry );
 	
-	virtual void RemoveListModeEntry( UKIRCMode* Mode, const FString& Entry );
+	virtual void RemoveListModeEntry( const UKIRCMode* const Mode, const FString& Entry );
 
 	virtual void SetLimit( int32 Limit ) { this->Limit = Limit; }
 
 	virtual void SetJoinKey( const FString& JoinKey ) { this->JoinKey = JoinKey; }
 
-	virtual void AddUserMode( UKIRCUser* User, UKIRCMode* Mode );
+	virtual void AddUserMode( const UKIRCUser* const User, const UKIRCMode* const Mode );
 
-	virtual void RemoveUserMode( UKIRCUser* User, UKIRCMode* Mode );
+	virtual void RemoveUserMode( const UKIRCUser* const User, const UKIRCMode* const Mode );
 
 };

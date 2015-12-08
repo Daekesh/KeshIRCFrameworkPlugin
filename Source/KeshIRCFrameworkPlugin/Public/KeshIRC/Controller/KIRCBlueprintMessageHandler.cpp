@@ -37,10 +37,9 @@ void UKIRCBlueprintMessageHandler::RegisterHandler( UKIRCClient* Client )
 	}
 
 	this->Client = Client;
-	this->Command = Command;
 	DelegateHandle.Reset();
 
-	Client->AddMessageHandler( Command, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCBlueprintMessageHandler::CommandCallback ) );
+	DelegateHandle = Client->AddMessageHandler( Command, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCBlueprintMessageHandler::CommandCallback ) );
 }
 
 
@@ -67,12 +66,11 @@ void UKIRCBlueprintMessageHandler::UnregisterHandler()
 	Client->RemoveMessageHandler( Command, DelegateHandle );
 	
 	Client = NULL;
-	Command = "";
 	DelegateHandle.Reset();
 }
 
 
-void UKIRCBlueprintMessageHandler::CommandCallback( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCBlueprintMessageHandler::CommandCallback( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Command.Len() == 0 )
 	{

@@ -83,7 +83,7 @@ struct FKIRCNumerics
     // WHOIS/WHOWAS
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
-    int32 ReplyWhoisHelper      = 310;                  // <nick> :looks very helpful                                                       DALNET
+    int32 ReplyWhoIsHelper      = 310;                  // <nick> :looks very helpful                                                       DALNET
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
     int32 ReplyWhoIsUser        = 311;                  // <nick> <username> <address> * :<info>
@@ -98,7 +98,7 @@ struct FKIRCNumerics
     int32 ReplyWhoIsIdle        = 317;                  // <nick> <seconds> <signon> :<info>
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
-    int32 ReplyEndOfWhois       = 318;                  // <request> :End of /WHOIS list.
+    int32 ReplyEndOfWhoIs       = 318;                  // <request> :End of /WHOIS list.
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
     int32 ReplyWhoIsChannels    = 319;                  // <nick> :<channels>
@@ -120,6 +120,9 @@ struct FKIRCNumerics
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
     int32 ReplyUserIP           = 340;                  // <nick> :<nickname>=+<user>@<IP.address>                                          UNDERNET
+
+	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	int32 ReplyWhoAuthName      = 330;
 
 
     // List
@@ -545,7 +548,7 @@ struct FKIRCNumerics
     int32 ErrorBadChanMask      = 476;
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
-    int32 ErrorNickNotRegistered= 477;                  // <channel> :You need a registered nick to join that channel.                      DALNET
+    int32 ErrorNoChanModes      = 477;                  // <channel> :Channel doesn't support modes
 
     UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
     int32 ErrorBanListFull      = 478;                  // <channel> <ban> :Channel ban/ignore list is full

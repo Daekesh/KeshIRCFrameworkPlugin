@@ -41,7 +41,7 @@ public:
 
 	// Alternate nicknames if your primary one is not available.
 	// If we're unable to register with your primary nick name, this list
-	// will be used. If it runs out a random KIRC##### name will be used.
+	// will be used. If it runs out, a random KIRC##### name will be used.
 	UPROPERTY( Category = "KeshIRC|Actor Component", EditAnywhere )
 	TArray<FString> AlternateNickNames;
 
@@ -61,8 +61,8 @@ public:
 	UPROPERTY( Category = "KeshIRC|Actor Component", VisibleInstanceOnly, BlueprintReadOnly, Transient )
 	UKIRCClient* Client;
 
-	UPROPERTY( Category = "KeshIRC|Actor Component", Instanced, BlueprintReadWrite, EditAnywhere )
-	TArray<UKIRCBlueprintMessageHandler*> MessageHandlers;
+	UPROPERTY( Category = "KeshIRC|Actor Component", BlueprintReadOnly, EditAnywhere )
+	TArray<TSubclassOf<UKIRCBlueprintMessageHandler>> MessageHandlerClasses;
 
 	// Call this function to create the client. One that's done, use the Connect()
 	// function to start your session. Disconnect() to end.

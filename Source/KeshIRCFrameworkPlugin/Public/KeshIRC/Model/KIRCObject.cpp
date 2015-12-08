@@ -18,7 +18,7 @@ void UKIRCObject::InitObject( const FString& Name )
 }
 
 
-UKIRCServer* UKIRCObject::GetServer() const
+UKIRCServer* const UKIRCObject::GetServer() const
 {
 	return Cast<UKIRCServer>( GetOuter() );
 }

@@ -3,6 +3,7 @@
 #include "Private/KeshIRCFrameworkPluginPrivatePCH.h"
 #include "KeshIRC/Model/KIRCChannel.h"
 #include "KeshIRC/Model/KIRCServer.h"
+#include "KeshIRC/Controller/KIRCClient.h"
 #include "KeshIRC/Model/KIRCUser.h"
 
 
@@ -30,7 +31,16 @@ void UKIRCUser::InitUser( const FString& Name, const FString& Ident, const FStri
 
 void UKIRCUser::SetName( const FString& Name )
 {
+	if ( this->Name.Equals( Name, ESearchCase::CaseSensitive ) )
+		return;
+
+	UKIRCServer* const Server = GetServer();
+
+	if ( Server != NULL )
+		Server->OnUserNameChange( this, Name );
+
 	Super::SetName( Name );
+
 	DisplayName = "";
 }
 
@@ -50,9 +60,9 @@ const FString& UKIRCUser::GetDisplayName()
 }
 
 
-const FKIRCChannelUserInfo& UKIRCUser::GetChannelUserInfo( UKIRCChannel* Channel )
+const FKIRCChannelUserInfo& UKIRCUser::GetChannelUserInfo( const UKIRCChannel* const Channel ) const
 {
-	static FKIRCChannelUserInfo DefaultReturnValue = { NULL, NULL, FDateTime( 0 ), TArray<UKIRCMode*>() };
+	static const FKIRCChannelUserInfo DefaultReturnValue = { NULL, NULL, FDateTime( 0 ), TArray<UKIRCMode*>() };
 
 	if ( Channel == NULL )
 		return DefaultReturnValue;
@@ -63,15 +73,12 @@ const FKIRCChannelUserInfo& UKIRCUser::GetChannelUserInfo( UKIRCChannel* Channel
 
 void UKIRCUser::ParseHostMask( const FString& Mask, FString& Name, FString& Ident, FString& Host )
 {
-	Name = "";
+	Name = "?";
 	Ident = "";
 	Host = "";
 
 	if ( Mask.Len() == 0 )
-	{
-		Name = "?";
 		return;
-	}
 
 	int32 iIndexOfAt = INDEX_NONE;
 	Mask.FindChar( '@', iIndexOfAt );
@@ -108,12 +115,13 @@ void UKIRCUser::ParseHostMask( const FString& Mask, FString& Name, FString& Iden
 void UKIRCUser::UpdateMask( const FString& Mask )
 {
 	HostMask = Mask;
-	UKIRCUser::ParseHostMask( Mask, Name, Ident, Host );
-	DisplayName = "";
+	FString NewName = "";
+	UKIRCUser::ParseHostMask( Mask, NewName, Ident, Host );
+	SetName( NewName );
 }
 
 
-bool UKIRCUser::JoinChannel( UKIRCChannel* Channel )
+bool UKIRCUser::JoinChannel( UKIRCChannel* const Channel )
 {
 	if ( Channel == NULL )
 	{
@@ -127,12 +135,12 @@ bool UKIRCUser::JoinChannel( UKIRCChannel* Channel )
 		return false;
 	}
 
-	Channels.Add( Channel );
+	Channels.AddUnique( Channel );
 	return true;
 }
 
 
-bool UKIRCUser::LeaveChannel( UKIRCChannel* Channel )
+bool UKIRCUser::LeaveChannel( const UKIRCChannel* const Channel )
 {
 	if ( Channel == NULL )
 	{
@@ -146,6 +154,28 @@ bool UKIRCUser::LeaveChannel( UKIRCChannel* Channel )
 		return false;
 	}
 
-	Channels.Remove( Channel );
+	Channels.Remove( const_cast< UKIRCChannel* >( Channel ) );
 	return true;
+}
+
+
+bool UKIRCUser::IsClient() const
+{
+	UKIRCServer* Server = GetServer();
+
+	if ( Server == NULL )
+	{
+		KIRCLog( Error, "User with null server." );
+		return false;
+	}
+
+	UKIRCClient* Client = Server->GetClient();
+
+	if ( Client == NULL )
+	{
+		KIRCLog( Error, "Server with null client." );
+		return false;
+	}
+
+	return ( Client->GetUser() == this );
 }

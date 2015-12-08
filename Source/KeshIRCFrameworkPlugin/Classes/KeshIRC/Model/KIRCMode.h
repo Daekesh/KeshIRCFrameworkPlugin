@@ -23,6 +23,12 @@ public:
 	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
 	EKIRCModeType GetType() const { return Type; }
 
+	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
+	EKIRCModeParamRequired GetParamRequired() const { return ParamRequired; }
+
+	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
+	bool RequireParamForChange( EKIRCModeChange ModeChange ) const;
+
 protected:
 
 	friend class UKIRCServer;
@@ -33,13 +39,17 @@ protected:
 	UPROPERTY( Category = "KeshIRC|Model|Mode", VisibleInstanceOnly )
 	EKIRCModeType Type;
 
+	UPROPERTY( Category = "KeshIRC|Model|Mode", VisibleInstanceOnly )
+	EKIRCModeParamRequired ParamRequired;
+
 	UKIRCMode( const class FObjectInitializer& ObjectInitializer );
 
 	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
-	virtual void InitMode( const FString& ModeCharacter, EKIRCModeType ModeType ) 
+	virtual void InitMode( const FString& ModeCharacter, EKIRCModeType ModeType, EKIRCModeParamRequired ModeParamRequired = EKIRCModeParamRequired::R_Never )
 	{ 
 		this->Mode = ModeCharacter;
 		this->Type = ModeType;
+		this->ParamRequired = ModeParamRequired;
 	}
 
 };
