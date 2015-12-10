@@ -22,7 +22,7 @@ UKIRCJoinCommandResponseScanner::UKIRCJoinCommandResponseScanner( const class FO
 }
 
 
-void UKIRCJoinCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCJoinCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{

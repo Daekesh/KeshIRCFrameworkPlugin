@@ -13,7 +13,7 @@ UKIRCAwayCommandResponseScanner::UKIRCAwayCommandResponseScanner( const class FO
 }
 
 
-void UKIRCAwayCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
+void UKIRCAwayCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* const Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
 {
 	Success();
 }

@@ -16,7 +16,7 @@ UKIRCTopicCommandResponseScanner::UKIRCTopicCommandResponseScanner( const class 
 }
 
 
-void UKIRCTopicCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCTopicCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{

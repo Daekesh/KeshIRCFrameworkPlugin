@@ -17,7 +17,7 @@ UKIRCUserModeCommandResponseScanner::UKIRCUserModeCommandResponseScanner( const 
 }
 
 
-void UKIRCUserModeCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
+void UKIRCUserModeCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* const Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Numeric == UKIRCClient::GetNumerics().ErrorNeedMoreParams || 
 		 Numeric == UKIRCClient::GetNumerics().ErrorUsersDontMatch ||

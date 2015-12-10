@@ -18,7 +18,7 @@ UKIRCKickCommandResponseScanner::UKIRCKickCommandResponseScanner( const class FO
 }
 
 
-void UKIRCKickCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCKickCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{
@@ -65,7 +65,7 @@ void UKIRCKickCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* S
 }
 
 
-void UKIRCKickCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
+void UKIRCKickCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* const Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Target.Len() == 0 )
 	{

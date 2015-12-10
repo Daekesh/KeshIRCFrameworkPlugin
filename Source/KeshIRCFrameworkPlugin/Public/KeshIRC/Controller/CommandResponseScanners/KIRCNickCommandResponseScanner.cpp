@@ -18,7 +18,7 @@ UKIRCNickCommandResponseScanner::UKIRCNickCommandResponseScanner( const class FO
 }
 
 
-void UKIRCNickCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCNickCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{

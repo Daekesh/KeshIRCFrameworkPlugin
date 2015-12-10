@@ -24,7 +24,7 @@ UKIRCWhoIsCommandResponseScanner::UKIRCWhoIsCommandResponseScanner( const class 
 }
 
 
-void UKIRCWhoIsCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
+void UKIRCWhoIsCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* const Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
 {
 	// Validity
 	if ( Client == NULL )

@@ -31,7 +31,7 @@ void UKIRCCommandResponseScanner::StartScan( UKIRCClient* Client )
 }
 
 
-void UKIRCCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{
@@ -48,7 +48,7 @@ void UKIRCCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Sourc
 }
 
 
-void UKIRCCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
+void UKIRCCommandResponseScanner::HandleNumeric_Implementation( UKIRCUser* const Source, int32 Numeric, const TArray<FString>& Params, const FString& Message )
 {
 	// If we receive these, make sure they are directed at this command.
 

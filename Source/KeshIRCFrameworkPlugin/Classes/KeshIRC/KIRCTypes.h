@@ -119,9 +119,9 @@ enum class EKIRCModeParamRequired : uint8
 UENUM( BlueprintType )
 enum class EKIRCCommandState : uint8
 {
-	S_Waiting UENUM( DisplayName = "Waiting" ),
-	S_Success UENUM( DisplayName = "Success" ),
-	S_Failure UENUM( DisplayName = "Failure" )
+	S_Waiting UMETA( DisplayName = "Waiting" ),
+	S_Success UMETA( DisplayName = "Success" ),
+	S_Failure UMETA( DisplayName = "Failure" )
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam( FKIRCServerConnected, UKIRCServer* const )

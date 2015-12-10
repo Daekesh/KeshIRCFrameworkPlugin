@@ -15,7 +15,7 @@ UKIRCPartCommandResponseScanner::UKIRCPartCommandResponseScanner( const class FO
 }
 
 
-void UKIRCPartCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
+void UKIRCPartCommandResponseScanner::HandleCommand_Implementation( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message )
 {
 	if ( Client == NULL )
 	{
