@@ -355,26 +355,24 @@ FKIRCModes UKIRCClient::GetModesBP()
 }
 
 
-FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
+void UKIRCClient::AddMessageHandler( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
-	static FDelegateHandle DefaultReturnValue = FDelegateHandle();
-
 	if ( Command.Len() == 0 )
 	{
 		KIRCLog( Error, "Tried to add a handler for a zero length command." );
-		return DefaultReturnValue;
+		return;
 	}
 
 	if ( CallbackObject == NULL )
 	{
 		KIRCLog( Error, "Tried to add a callback on a null objcet." );
-		return DefaultReturnValue;
+		return;
 	}
 
 	if ( CallbackFunction == NULL )
 	{
 		KIRCLog( Error, "Tried to add a callback with a null function." );
-		return DefaultReturnValue;
+		return;
 	}
 
 	const FString CommandUpper = Command.ToUpper();
@@ -385,25 +383,23 @@ FDelegateHandle UKIRCClient::AddMessageHandler( const FString& Command, UObject*
 		MessageHandlers.Emplace( CommandUpper, MessageHandler );
 	}
 
-	return MessageHandlers[ CommandUpper ].AddUObject( CallbackObject, CallbackFunction );
+	MessageHandlers[ CommandUpper ].AddUniqueDynamic( CallbackObject, CallbackFunction );
 }
 
 
-FDelegateHandle UKIRCClient::AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
+void UKIRCClient::AddMessageHandler( int32 Numeric, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
-	static FDelegateHandle DefaultReturnValue = FDelegateHandle();
-
 	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
 	{
 		KIRCLog( Error, "Tried to add an out of range numeric handler." );
-		return DefaultReturnValue;
+		return;
 	}
 
-	return AddMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
+	AddMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
 }
 
 
-void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle Handle )
+void UKIRCClient::RemoveMessageHandler( const FString& Command, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
 	if ( Command.Len() == 0 )
 	{
@@ -411,9 +407,15 @@ void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle 
 		return;
 	}
 
-	if ( !Handle.IsValid() )
+	if ( CallbackObject == NULL )
 	{
-		KIRCLog( Error, "Tried to remove an invalid delegate handle." );
+		KIRCLog( Error, "Tried to remove an delegate with a null object." );
+		return;
+	}
+
+	if ( CallbackFunction == NULL )
+	{
+		KIRCLog( Error, "Tried to remove an delegate with a null function." );
 		return;
 	}
 
@@ -425,14 +427,14 @@ void UKIRCClient::RemoveMessageHandler( const FString& Command, FDelegateHandle 
 		return;
 	}
 
-	MessageHandlers[ CommandUpper ].Remove( Handle );
+	MessageHandlers[ CommandUpper ].RemoveDynamic( CallbackObject, CallbackFunction );
 
 	if ( !MessageHandlers[ CommandUpper ].IsBound() )
 		MessageHandlers.Remove( CommandUpper );
 }
 
 
-void UKIRCClient::RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle )
+void UKIRCClient::RemoveMessageHandler( int32 Numeric, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
 	if ( Numeric < GetNumerics().NumericMin || Numeric > GetNumerics().NumericMax )
 	{
@@ -440,7 +442,7 @@ void UKIRCClient::RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle )
 		return;
 	}
 
-	RemoveMessageHandler( NumericToString( Numeric ), Handle );
+	RemoveMessageHandler( NumericToString( Numeric ), CallbackObject, CallbackFunction );
 }
 
 
@@ -494,12 +496,12 @@ UKIRCBlueprintMessageHandler* const UKIRCClient::CreateMessageHandler( TSubclass
 void UKIRCClient::SetupMessageHandlers()
 {
 	// Nickname negotiation handlers
-	RegistrationNickErrorNoneGiven = AddMessageHandler( GetNumerics().ErrorNoNicknameGiven, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCClient::OnNickNegotiationFatalHandler ) );
-	RegistrationNickErrorNickInUse = AddMessageHandler( GetNumerics().ErrorNickNameInUse, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
-	RegistrationNickErrorUnavailableResource = AddMessageHandler( GetNumerics().ErrorUnAvailResource, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
-	RegistrationNickErrorErroneousNick = AddMessageHandler( GetNumerics().ErrorErroneusNickname, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
-	RegistrationNickErrorNickCollision = AddMessageHandler( GetNumerics().ErrorNickCollision, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
-	RegistrationNickErrorRestricted = AddMessageHandler( GetNumerics().ErrorRestricted, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	AddMessageHandler( GetNumerics().ErrorNoNicknameGiven, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCClient::OnNickNegotiationFatalHandler ) );
+	AddMessageHandler( GetNumerics().ErrorNickNameInUse, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	AddMessageHandler( GetNumerics().ErrorUnAvailResource, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	AddMessageHandler( GetNumerics().ErrorErroneusNickname, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	AddMessageHandler( GetNumerics().ErrorNickCollision, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	AddMessageHandler( GetNumerics().ErrorRestricted, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
 
 	// Network info
 	AddMessageHandler( GetNumerics().ReplyWelcome, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNetworkWelcomeHandler ) );
@@ -607,23 +609,12 @@ void UKIRCClient::OnNetworkWelcomeHandler( UKIRCUser* const Source, const FStrin
 	}
 
 	// Remove nick negotiation handlers
-	if ( RegistrationNickErrorNoneGiven.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorNoNicknameGiven, RegistrationNickErrorNoneGiven );
-
-	if ( RegistrationNickErrorNickInUse.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorNickNameInUse, RegistrationNickErrorNickInUse );
-
-	if ( RegistrationNickErrorUnavailableResource.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorUnAvailResource, RegistrationNickErrorUnavailableResource );
-
-	if ( RegistrationNickErrorErroneousNick.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorErroneusNickname, RegistrationNickErrorErroneousNick );
-	
-	if ( RegistrationNickErrorNickCollision.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorNickCollision, RegistrationNickErrorNickCollision );
-	
-	if ( RegistrationNickErrorRestricted.IsValid() )
-		RemoveMessageHandler( GetNumerics().ErrorRestricted, RegistrationNickErrorRestricted );
+	RemoveMessageHandler( GetNumerics().ErrorNoNicknameGiven, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCClient::OnNickNegotiationFatalHandler ) );
+	RemoveMessageHandler( GetNumerics().ErrorNickNameInUse, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RemoveMessageHandler( GetNumerics().ErrorUnAvailResource, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RemoveMessageHandler( GetNumerics().ErrorErroneusNickname, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RemoveMessageHandler( GetNumerics().ErrorNickCollision, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
+	RemoveMessageHandler( GetNumerics().ErrorRestricted, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCClient::OnNickNegotaitionNextNickHandler ) );
 	
 	FString MessageChop = Message;
 	
@@ -1078,10 +1069,10 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 				else
 					Channel->RemoveUserMode( Target, Mode );
 
-				OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
+				OnChannelUserModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, Target );
 				OnChannelUserModeEvent( Channel, Source, Mode, ModeChange, Target );
-				Channel->OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
-				Target->OnChannelUserModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, Target );
+				Channel->OnChannelUserModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, Target );
+				Target->OnChannelUserModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, Target );
 			}
 
 			else if ( Mode->GetType() == EKIRCModeType::T_Channel_List )
@@ -1099,9 +1090,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 				else
 					Channel->RemoveListModeEntry( Mode, ModeParams[ iCurrentParam ] );
 
-				OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+				OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 				OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 				++iCurrentParam;
 			}
 
@@ -1130,9 +1121,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 						ChannelKeyCache.Remove( Channel->GetName().ToUpper() );
 					}
 
-					OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+					OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 					OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-					Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+					Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 					++iCurrentParam;
 				}
 
@@ -1157,9 +1148,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 
 						Channel->AddUnaryMode( Mode );
 						Channel->SetLimit( Limit );
-						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 						OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 						++iCurrentParam;
 					}
 
@@ -1167,9 +1158,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 					{
 						Channel->RemoveUnaryMode( Mode );
 						Channel->SetLimit( 0 );
-						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "0" );
+						OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "0" );
 						OnChannelModeEvent( Channel, Source, Mode, ModeChange, "0" );
-						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "0" );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "0" );
 					}
 				}
 
@@ -1185,9 +1176,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 						}
 
 						Channel->AddUnaryMode( Mode );
-						OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 						OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 						++iCurrentParam;
 					}
 
@@ -1201,17 +1192,17 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 								return;
 							}
 
-							OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+							OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 							OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
+							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 							++iCurrentParam;
 						}
 
 						else
 						{
-							OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+							OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "" );
 							OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
-							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+							Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "" );
 						}
 					}
 				}
@@ -1226,9 +1217,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 				else
 					Channel->RemoveUnaryMode( Mode );
 				
-				OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+				OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "" );
 				OnChannelModeEvent( Channel, Source, Mode, ModeChange, "" );
-				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, Mode, ModeChange, "" );
+				Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, "" );
 			}
 		}
 	}
@@ -1300,9 +1291,9 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 				UserModes.Remove( Mode );
 			}
 
-			OnUserModeDelegate.Broadcast( User, Mode, ModeChange );
+			OnUserModeDelegate.Broadcast( User, const_cast<UKIRCMode*>( Mode ), ModeChange );
 			OnUserModeEvent( User, Mode, ModeChange );
-			User->OnUserModeDelegate.Broadcast( User, Mode, ModeChange );
+			User->OnUserModeDelegate.Broadcast( User, const_cast<UKIRCMode*>( Mode ), ModeChange );
 		}
 	}
 }
@@ -1738,7 +1729,7 @@ bool UKIRCClient::SendCommandCallback( const FString& Command, TSubclassOf<UKIRC
 		ResponseScanner->SetTarget( Target );
 
 		if ( CallbackObject != NULL && CallbackFunction != NULL )
-			ResponseScanner->OnScanComplete.BindUObject( CallbackObject, CallbackFunction );
+			ResponseScanner->OnScanComplete.BindDynamic( CallbackObject, CallbackFunction );
 	}
 
 	return this->SendCommand( Command, ResponseScanner );

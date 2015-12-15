@@ -9,7 +9,6 @@ UKIRCBlueprintMessageHandler::UKIRCBlueprintMessageHandler( const class FObjectI
 	: Super( ObjectInitializer )
 {
 	Client = NULL;
-	DelegateHandle.Reset();
 }
 
 
@@ -27,19 +26,8 @@ void UKIRCBlueprintMessageHandler::RegisterHandler( UKIRCClient* Client )
 		return;
 	}
 
-	if ( DelegateHandle.IsValid() )
-	{
-		if ( Client != NULL && Command.Len() > 0 )
-			Client->RemoveMessageHandler( Command, DelegateHandle );
-
-		else
-			KIRCLog( Error, "Registering a command callback with an already valid delegate handle which is unable to be removed." );
-	}
-
 	this->Client = Client;
-	DelegateHandle.Reset();
-
-	DelegateHandle = Client->AddMessageHandler( Command, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCBlueprintMessageHandler::CommandCallback ) );
+	Client->AddMessageHandler( Command, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCBlueprintMessageHandler::CommandCallback ) );
 }
 
 
@@ -57,16 +45,8 @@ void UKIRCBlueprintMessageHandler::UnregisterHandler()
 		return;
 	}
 
-	if ( !DelegateHandle.IsValid() )
-	{
-		KIRCLog( Error, "Trying to unregister a command callback without a valid delegate handle." );
-		return;
-	}
-
-	Client->RemoveMessageHandler( Command, DelegateHandle );
-	
+	Client->RemoveMessageHandler( Command, this, static_cast<FKIRCIncomingMessageHandlerDelegate>( &UKIRCBlueprintMessageHandler::CommandCallback ) );
 	Client = NULL;
-	DelegateHandle.Reset();
 }
 
 

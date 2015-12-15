@@ -7,6 +7,11 @@
 
 class UKIRCClient;
 
+struct FKIRCCallback
+{
+	UObject* Object;
+	FKIRCIncomingMessageHandlerDelegate Callback;
+};
 
 /**
 * Handles the responses from the server for the commands sent.
@@ -86,17 +91,17 @@ private:
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly )
 	FString Result;
 
-	TMap<FString, FDelegateHandle> RegisteredCallbacks;
+	TMap<FString, FKIRCCallback> RegisteredCallbacks;
 
 protected:
 
 	virtual void RegisterCallbacks();
 
-	FDelegateHandle RegisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
+	bool RegisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
 	virtual void RemoveRegisteredCallbacks();
 
-	void UnregisterCallback( const FString& Command, FDelegateHandle Handle );
+	void UnregisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
 	virtual void Fail( const FString& Message );

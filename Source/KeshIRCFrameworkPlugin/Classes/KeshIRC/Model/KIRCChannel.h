@@ -123,15 +123,34 @@ public:
 
 	const TMap<UKIRCMode*, FKIRCModeListContainer>& GetChannelModeLists() const { return ModeLists; }
 
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserMessage OnMessageDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelJoin OnJoinedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelPart OnPartedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelKick OnKickedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelModeChange OnChannelModeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelUserModeChange OnChannelUserModeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelTopicChange OnTopicChangedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelInvite OnInvitedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelBodyReceive OnTopicReceiveDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelDetailsReceive OnTopicDetailsDelegate;
 
 protected:

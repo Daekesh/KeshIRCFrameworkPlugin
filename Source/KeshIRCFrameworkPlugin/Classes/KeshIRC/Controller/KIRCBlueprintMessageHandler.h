@@ -42,8 +42,6 @@ public:
 
 protected:
 
-	FDelegateHandle DelegateHandle;
-
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
 	UKIRCClient* Client;
 

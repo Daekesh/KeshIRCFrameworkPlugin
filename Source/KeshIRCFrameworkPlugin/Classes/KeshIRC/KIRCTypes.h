@@ -124,85 +124,33 @@ enum class EKIRCCommandState : uint8
 	S_Failure UMETA( DisplayName = "Failure" )
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam( FKIRCServerConnected, UKIRCServer* const )
-DECLARE_MULTICAST_DELEGATE_OneParam( FKIRCUserRegistered, UKIRCClient* const )
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCServerDisconnected, UKIRCServer* const, EKIRCServerDisconnectReason )
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCConnectionError, UKIRCServer* const, const FString& )
-DECLARE_MULTICAST_DELEGATE_ThreeParams( FKIRCUserModeChange, UKIRCUser* const, const UKIRCMode* const, EKIRCModeChange )
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCServerRaw, UKIRCServer* const, const FString& )
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCMOTDComplete, UKIRCClient* const, const TArray<FString>& )
-
-DECLARE_DELEGATE_OneParam( FKIRCCommandResponseCallback, const UKIRCCommandResponseScanner* const )
-typedef void( __cdecl UObject::*FKIRCCommandResponseCallbackDelegate )( const UKIRCCommandResponseScanner* const Scanner );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam( FKIRCServerConnected, UKIRCServer* const, Server );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam( FKIRCUserRegistered, UKIRCClient* const, Client );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCServerDisconnected, UKIRCServer* const, Server, EKIRCServerDisconnectReason, Reason );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCConnectionError, UKIRCServer* const, Server, const FString&, ErrorString );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams( FKIRCUserModeChange, UKIRCUser* const, Source, UKIRCMode* const, Mode, EKIRCModeChange, ModeChange );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCServerRaw, UKIRCServer* const, Server, const FString&, RawLine );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCMOTDComplete, UKIRCClient* const, Client, const TArray<FString>&, MOTDLines );
 
 // Source will be null if it's form the server (numerics)
-DECLARE_MULTICAST_DELEGATE_FourParams( FKIRCIncomingMessageHandler, UKIRCUser* const /*Source*/, const FString& /*Command*/, const TArray<FString>& /*Params*/, const FString& /*Message*/ )
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCIncomingMessageHandler, UKIRCUser* const, Source, const FString&, Command, const TArray<FString>&, Params, const FString&, Message );
 typedef void( __cdecl UObject::*FKIRCIncomingMessageHandlerDelegate )( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
-// TArray is the space-delimitered list of tokens before the first colon
-// FString is everything after the first colon
-DECLARE_MULTICAST_DELEGATE_FourParams( FKIRCUnhandledNumeric, UKIRCServer* const, int32, const TArray<FString>&, const FString& )
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCUnhandledNumeric, UKIRCServer* const, Server, int32, Numeric, const TArray<FString>&, Params, const FString&, Message );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCUserMessage, UKIRCUser* const, Source, UKIRCChannel* const, Channel, EKIRCMessageType, MessageType, const FString&, Message );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelInvite, UKIRCUser* const, Source, const FString&, ChannelName );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelJoin, UKIRCChannel* const, Channel, UKIRCUser* const, Source );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelPart, UKIRCChannel* const, Channel, UKIRCUser* const, Source, const FString&, Message );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCChannelKick, UKIRCChannel* const, Channel, UKIRCUser* const, Kicker, UKIRCUser* const, Kickee, const FString&, Reason );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams( FKIRCChannelModeChange, UKIRCChannel* const, Channel, UKIRCUser* const, Source, UKIRCMode* const, Mode, EKIRCModeChange, ModeChange, const FString&, Param );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams( FKIRCChannelUserModeChange, UKIRCChannel* const, Channel, UKIRCUser* const, Source, UKIRCMode* const, Mode, EKIRCModeChange, ModeChange, UKIRCUser* const, Target );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelTopicChange, UKIRCChannel* const, Channel, UKIRCUser* const, Source, const FString&, TopicBody );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelBodyReceive, UKIRCChannel* const, Channel, const FString&, TopicBody );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_SixParams( FKIRCChannelDetailsReceive, UKIRCChannel* const, Channel, const FString&, AuthorName, const FDateTime&, Date, const FString&, AuthorIdent, const FString&, AuthorHost, const FString&, TopicBody );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelNameList, UKIRCChannel* const, Channel, const TArray<FKIRCChannelUserInfo>&, UserInfoList );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCUserNickNameChange, UKIRCUser* const, Source, const FString&, OldNickName );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCUserQuit, UKIRCUser* const, Source, const FString&, Message );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCCommandResponse, UKIRCClient* const, Client, const UKIRCCommandResponseScanner* const, CommandResponseScanner );
 
-// Source of the message
-// Channel message sent to (null if a pm)
-// Type of message
-// Text of the message
-DECLARE_MULTICAST_DELEGATE_FourParams( FKIRCUserMessage, UKIRCUser* const, UKIRCChannel* const, EKIRCMessageType, const FString& )
-
-// Source of the invite
-// Channel being invited to (string, not obj)
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCChannelInvite, UKIRCUser* const, const FString& )
-
-// User joining the channel
-// Channel joined
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCChannelJoin, UKIRCChannel* const, UKIRCUser* const )
-
-// User parting the channel
-// Channel parted
-// Part message
-DECLARE_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelPart, UKIRCChannel* const, UKIRCUser* const, const FString& )
-
-// Channel being kicked from
-// User doing the kicking
-// User being kicked
-// Reason
-DECLARE_MULTICAST_DELEGATE_FourParams( FKIRCChannelKick, UKIRCChannel* const, UKIRCUser* const, UKIRCUser* const, const FString& )
-
-// Channel changing mode
-// User adding mode
-// Mode added
-// Param string
-DECLARE_MULTICAST_DELEGATE_FiveParams( FKIRCChannelModeChange, UKIRCChannel* const, UKIRCUser* const, const UKIRCMode* const, EKIRCModeChange, const FString& )
-
-// Channel 
-// User adding mode
-// Mode added
-// User changing mode
-DECLARE_MULTICAST_DELEGATE_FiveParams( FKIRCChannelUserModeChange, UKIRCChannel* const, UKIRCUser* const, const UKIRCMode* const, EKIRCModeChange, UKIRCUser* const )
-
-// Channel changing topic
-// User changing the topic
-// New topic
-DECLARE_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelTopicChange, UKIRCChannel* const, UKIRCUser* const, const FString& )
-
-// Channel
-// New topic
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCChannelBodyReceive, UKIRCChannel* const, const FString& )
-
-// Channel
-// New topic
-DECLARE_MULTICAST_DELEGATE_SixParams( FKIRCChannelDetailsReceive, UKIRCChannel* const, const FString&, const FDateTime&, const FString&, const FString&, const FString& )
-
-// Channel
-// Name/most list
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCChannelNameList, UKIRCChannel* const, const TArray<FKIRCChannelUserInfo>& )
-
-// User changing name
-// Old nickname
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCUserNickNameChange, UKIRCUser* const, const FString& )
-
-// User quiting
-// Quit message
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCUserQuit, UKIRCUser* const, const FString& )
-
-DECLARE_MULTICAST_DELEGATE_TwoParams( FKIRCCommandResponse, UKIRCClient* const, const UKIRCCommandResponseScanner* const )
+DECLARE_DYNAMIC_DELEGATE_OneParam( FKIRCCommandResponseCallback, UKIRCCommandResponseScanner* const, CommandResponseScanner );
+typedef void( __cdecl UObject::*FKIRCCommandResponseCallbackDelegate )( UKIRCCommandResponseScanner* const CommandResponseScanner );

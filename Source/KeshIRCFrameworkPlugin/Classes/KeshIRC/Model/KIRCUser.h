@@ -54,18 +54,50 @@ public:
 	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
 	bool IsClient() const;
 
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserMessage OnMessageDelegate;
-	FKIRCChannelInvite OnInvitedDelegate; // This user is sending the invite
+
+	// This user is sending the invite
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelInvite OnInvitedDelegate; 
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelJoin OnJoinedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelPart OnLeftDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserQuit OnQuitDelegate;
-	FKIRCChannelKick OnKickedDelegate; // This user is getting kicked
-	FKIRCChannelKick OnKickDelegate; // This user is doing the kicking
-	FKIRCUserModeChange OnUserModeDelegate; // This user changes modes
-	FKIRCChannelModeChange OnChannelModeDelegate; // We changed the mode
-	FKIRCChannelUserModeChange OnChannelUserModeDelegate; // This user is doing the mode change
-	FKIRCChannelUserModeChange OnChannelUserModeChangedDelegate; // This user is getting the mode change
+
+	// This user is getting kicked
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelKick OnKickedDelegate; 
+
+	// This user is doing the kicking
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelKick OnKickDelegate; 
+
+	// This user changes modes
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCUserModeChange OnUserModeDelegate; 
+
+	// We changed the mode
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelModeChange OnChannelModeDelegate; 
+
+	// This user is doing the mode change
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelUserModeChange OnChannelUserModeDelegate; 
+
+	// This user is getting the mode change
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelUserModeChange OnChannelUserModeChangedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserNickNameChange OnNickNameChangedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelTopicChange OnTopicChangedDelegate;
 	
 	static void ParseHostMask( const FString& Mask, FString& NickName, FString& Ident, FString& Host );

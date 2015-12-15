@@ -189,34 +189,39 @@ void UKIRCCommandResponseScanner::RegisterCallbacks()
 {
 	for ( FString& Command : CommandCallbacks )
 	{
-		FDelegateHandle Handle = RegisterCallback( Command, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCCommandResponseScanner::CommandCallback ) );
+		bool bRegistered = RegisterCallback( Command, this, static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCCommandResponseScanner::CommandCallback ) );
 
-		if ( Handle.IsValid() )
-			RegisteredCallbacks.Emplace( Command, Handle );
+		FKIRCCallback stCallback;
+		stCallback.Object = this;
+		stCallback.Callback = static_cast< FKIRCIncomingMessageHandlerDelegate >( &UKIRCCommandResponseScanner::CommandCallback );
+
+		if ( bRegistered )
+			RegisteredCallbacks.Emplace( Command, stCallback );
 	}
 }
 
 
-FDelegateHandle UKIRCCommandResponseScanner::RegisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
+bool UKIRCCommandResponseScanner::RegisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
 	if ( Client == NULL )
 	{
 		KIRCLog( Error, "Tried to register a command response scanner callback with a null client." );
-		return FDelegateHandle();
+		return false;
 	}
 
-	return Client->AddMessageHandler( Command, CallbackObject, CallbackFunction );
+	Client->AddMessageHandler( Command, CallbackObject, CallbackFunction );
+	return true;
 }
 
 
 void UKIRCCommandResponseScanner::RemoveRegisteredCallbacks()
 {
 	for ( auto Iterator = RegisteredCallbacks.CreateConstIterator(); Iterator; ++Iterator )
-		UnregisterCallback( Iterator.Key(), Iterator.Value() );
+		UnregisterCallback( Iterator.Key(), Iterator.Value().Object, Iterator.Value().Callback );
 }
 
 
-void UKIRCCommandResponseScanner::UnregisterCallback( const FString& Command, FDelegateHandle Handle )
+void UKIRCCommandResponseScanner::UnregisterCallback( const FString& Command, UObject* CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction )
 {
 	if ( Client == NULL )
 	{
@@ -224,7 +229,7 @@ void UKIRCCommandResponseScanner::UnregisterCallback( const FString& Command, FD
 		return;
 	}
 
-	Client->RemoveMessageHandler( Command, Handle );
+	Client->RemoveMessageHandler( Command, CallbackObject, CallbackFunction );
 }
 
 

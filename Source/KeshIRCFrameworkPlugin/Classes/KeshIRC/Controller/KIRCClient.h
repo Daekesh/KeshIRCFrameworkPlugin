@@ -95,26 +95,67 @@ public:
 	 * Events *
 	 **********/
 
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCServerConnected OnConnectedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCServerDisconnected OnDisconnectedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCConnectionError OnConnectionErrorDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCMOTDComplete OnMOTDCompleteDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserRegistered OnRegisteredDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserModeChange OnUserModeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelInvite OnInvitedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserMessage OnMessageDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelJoin OnJoinDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelPart OnPartDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserQuit OnQuitDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelKick OnKickDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelModeChange OnChannelModeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelUserModeChange OnChannelUserModeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelTopicChange OnTopicChangeDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelBodyReceive OnTopicReceiveDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelDetailsReceive OnTopicDetailsDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserNickNameChange OnNickNameChangedDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUnhandledNumeric OnUnhandledNumericDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCServerRaw OnUnhandledRawMessageDelegate;
+
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCCommandResponse OnCommandResponseDelegate;
 
 
@@ -219,13 +260,13 @@ public:
 	void HandleMessage( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 	virtual void HandleMessage_Implementation( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
-	virtual FDelegateHandle AddMessageHandler( const FString& Command, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
+	virtual void AddMessageHandler( const FString& Command, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
-	virtual FDelegateHandle AddMessageHandler( int32 Numeric, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
+	virtual void AddMessageHandler( int32 Numeric, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
-	virtual void RemoveMessageHandler( const FString& Command, FDelegateHandle Handle );
+	virtual void RemoveMessageHandler( const FString& Command, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
-	virtual void RemoveMessageHandler( int32 Numeric, FDelegateHandle Handle );
+	virtual void RemoveMessageHandler( int32 Numeric, UObject* const CallbackObject, FKIRCIncomingMessageHandlerDelegate CallbackFunction );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable )
 	UKIRCBlueprintMessageHandler* const CreateMessageHandler( TSubclassOf<UKIRCBlueprintMessageHandler> MessageHandlerClass,
