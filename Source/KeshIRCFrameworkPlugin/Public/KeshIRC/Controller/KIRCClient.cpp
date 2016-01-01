@@ -1098,36 +1098,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 
 			else if ( Mode->GetType() == EKIRCModeType::T_Channel_Param )
 			{
-				if ( Mode->GetMode() == UKIRCClient::GetModes().Channel.Key )
-				{
-					// Key always requires a param to be given
-					if ( iCurrentParam == ModeParams.Num() )
-					{
-						KIRCLog( Error, "Not enough params in mode string." );
-						return;
-					}
-
-					if ( ModeChange == EKIRCModeChange::M_Add )
-					{
-						Channel->AddUnaryMode( Mode );
-						Channel->SetJoinKey( ModeParams[ iCurrentParam ] );
-						ChannelKeyCache.Emplace( Channel->GetName().ToUpper(), ModeParams[ iCurrentParam ] );
-					}
-
-					else
-					{
-						Channel->RemoveUnaryMode( Mode );
-						Channel->SetJoinKey( "" );
-						ChannelKeyCache.Remove( Channel->GetName().ToUpper() );
-					}
-
-					OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
-					OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
-					Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
-					++iCurrentParam;
-				}
-
-				else if ( Mode->GetMode() == UKIRCClient::GetModes().Channel.UserLimit )
+				if ( Mode->GetMode() == UKIRCClient::GetModes().Channel.UserLimit )
 				{
 					if ( ModeChange == EKIRCModeChange::M_Add )
 					{
@@ -1175,7 +1146,7 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 							return;
 						}
 
-						Channel->AddUnaryMode( Mode );
+						Channel->SetParamMode( Mode, ModeParams[ iCurrentParam ] );
 						OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
 						OnChannelModeEvent( Channel, Source, Mode, ModeChange, ModeParams[ iCurrentParam ] );
 						Channel->OnChannelModeDelegate.Broadcast( Channel, Source, const_cast<UKIRCMode*>( Mode ), ModeChange, ModeParams[ iCurrentParam ] );
@@ -1184,6 +1155,8 @@ void UKIRCClient::OnModeChangeHandler( UKIRCUser* const Source, const FString& C
 
 					else
 					{
+						Channel->RemoveParamMode( Mode );
+
 						if ( Mode->GetParamRequired() == EKIRCModeParamRequired::R_Always )
 						{
 							if ( iCurrentParam == ModeParams.Num() )
@@ -1516,13 +1489,13 @@ void UKIRCClient::OnNameListHandler( UKIRCUser* const Source, const FString& Com
 
 	if ( Params[ 1 ] == "*" )
 	{
-		if ( Private != NULL && !Channel->IsChannelModeSet( Private ) )
+		if ( Private != NULL && !Channel->IsChannelUnaryModeSet( Private ) )
 			Channel->AddUnaryMode( Private );
 	}
 
 	else if ( Params[ 1 ] == "@" )
 	{
-		if ( Secret != NULL && !Channel->IsChannelModeSet( Secret ) )
+		if ( Secret != NULL && !Channel->IsChannelUnaryModeSet( Secret ) )
 			Channel->AddUnaryMode( Secret );
 	}
 

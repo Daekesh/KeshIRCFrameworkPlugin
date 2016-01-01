@@ -14,10 +14,9 @@ UKIRCChannel::UKIRCChannel( const class FObjectInitializer& ObjectInitializer )
 	TopicAuthor = "";
 	TopicDate = FDateTime( 0 );
 	Created = FDateTime( 0 );
-	Modes.SetNum( 0 );
-	ModeLists.Empty();
+	UnaryModes.SetNum( 0 );
+	ListModes.Empty();
 	Limit = 0;
-	JoinKey = "";
 	Users.Empty();
 }
 
@@ -69,7 +68,7 @@ bool UKIRCChannel::HasUserLimit() const
 	if ( KeyMode == NULL )
 		return false;
 
-	return IsChannelModeSet( KeyMode );
+	return IsChannelUnaryModeSet( KeyMode );
 }
 
 
@@ -88,11 +87,40 @@ bool UKIRCChannel::IsJoinKeySet() const
 	if ( KeyMode == NULL )
 		return false;
 
-	return IsChannelModeSet( KeyMode );
+	return IsChannelParamModeSet( KeyMode );
 }
 
 
-const TArray<FString>& UKIRCChannel::GetChannelModeListValues( const UKIRCMode* const Mode ) const
+const FString& UKIRCChannel::GetJoinKey() const
+{
+	static FString strDefaultReturnValue = "";
+
+	UKIRCServer* Server = GetServer();
+
+	if ( Server == NULL )
+		return strDefaultReturnValue;
+
+	const UKIRCMode* const KeyMode = Server->GetChannelMode( UKIRCClient::GetModes().Channel.Key );
+
+	return GetChannelParamModeValue( KeyMode );
+}
+
+
+const FString& UKIRCChannel::GetChannelParamModeValue( const UKIRCMode* const Mode ) const
+{
+	static FString strDefaultReturnValue = "";
+
+	if ( Mode == NULL )
+		return strDefaultReturnValue;
+
+	if ( !ParamModes.Contains( Mode ) )
+		return strDefaultReturnValue;
+
+	return ParamModes[ Mode ];
+}
+
+
+const TArray<FString>& UKIRCChannel::GetChannelListModeEntries( const UKIRCMode* const Mode ) const
 {
 	static const TArray<FString> DefaultReturnValue = TArray<FString>();
 
@@ -102,10 +130,10 @@ const TArray<FString>& UKIRCChannel::GetChannelModeListValues( const UKIRCMode* 
 		return DefaultReturnValue;
 	}
 
-	if ( !ModeLists.Contains( Mode ) )
+	if ( !ListModes.Contains( Mode ) )
 		return DefaultReturnValue;
 
-	return ModeLists[ Mode ].List;
+	return ListModes[ Mode ].List;
 }
 
 
@@ -156,13 +184,13 @@ void UKIRCChannel::AddUnaryMode( const UKIRCMode* const Mode )
 		return;
 	}
 
-	if ( IsChannelModeSet( Mode ) )
+	if ( IsChannelUnaryModeSet( Mode ) )
 	{
 		KIRCLog( Error, "Trying to add a unary mode that's already set." );
 		return;
 	}
 
-	Modes.AddUnique( const_cast< UKIRCMode* >( Mode ) );
+	UnaryModes.AddUnique( const_cast< UKIRCMode* >( Mode ) );
 }
 
 
@@ -174,13 +202,46 @@ void UKIRCChannel::RemoveUnaryMode( const UKIRCMode* const Mode )
 		return;
 	}
 
-	if ( !IsChannelModeSet( Mode ) )
+	if ( !IsChannelUnaryModeSet( Mode ) )
 	{
 		KIRCLog( Error, "Trying to remove a unary mode that isn't set." );
 		return;
 	}
 
-	Modes.Remove( const_cast< UKIRCMode* >( Mode ) );
+	UnaryModes.Remove( const_cast< UKIRCMode* >( Mode ) );
+}
+
+
+void UKIRCChannel::SetParamMode( const UKIRCMode* const Mode, const FString& Value )
+{
+	if ( Mode == NULL )
+	{
+		KIRCLog( Error, "Trying to set a null param mode." );
+		return;
+	}
+
+	if ( Value.Len() == 0 )
+	{
+		KIRCLog( Error, "Trying to set a zero-length param mode value." );
+		return;
+	}
+
+	ParamModes.Emplace( const_cast< UKIRCMode* >( Mode ), Value );
+}
+
+
+void UKIRCChannel::RemoveParamMode( const UKIRCMode* const Mode )
+{
+	if ( Mode == NULL )
+	{
+		KIRCLog( Error, "Trying to remove a null param mode." );
+		return;
+	}
+
+	if ( !ParamModes.Contains( Mode ) )
+		return;
+
+	ParamModes.Remove( Mode );
 }
 
 
@@ -198,13 +259,13 @@ void UKIRCChannel::AddListModeEntry( const UKIRCMode* const Mode, const FString&
 		return;
 	}
 
-	if ( !ModeLists.Contains( Mode ) )
+	if ( !ListModes.Contains( Mode ) )
 	{
 		FKIRCModeListContainer Entries;
-		ModeLists.Emplace( const_cast< UKIRCMode* >( Mode ), Entries );
+		ListModes.Emplace( const_cast< UKIRCMode* >( Mode ), Entries );
 	}
 
-	ModeLists[ Mode ].List.Add( Entry );
+	ListModes[ Mode ].List.Add( Entry );
 }
 
 
@@ -223,16 +284,16 @@ void UKIRCChannel::RemoveListModeEntry( const UKIRCMode* const Mode, const FStri
 		return;
 	}
 
-	if ( !ModeLists.Contains( Mode ) )
+	if ( !ListModes.Contains( Mode ) )
 	{
 		KIRCLog( Error, "Trying to remove a list mode value that has none set." );
 		return;
 	}
 
-	ModeLists[ Mode ].List.Remove( Entry );
+	ListModes[ Mode ].List.Remove( Entry );
 
-	if ( ModeLists[ Mode ].List.Num() == 0 )
-		ModeLists.Remove( Mode );
+	if ( ListModes[ Mode ].List.Num() == 0 )
+		ListModes.Remove( Mode );
 }
 
 
