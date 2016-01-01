@@ -183,31 +183,31 @@ protected:
 	friend class UKIRCServer;
 	friend class UKIRCClient;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	FString TopicBody;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	FString TopicAuthor;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	FDateTime TopicDate;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	FDateTime Created;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	TArray<const UKIRCMode*> UnaryModes;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	TMap<UKIRCMode*, FString> ParamModes;
 
-	UPROPERTY( /*Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly*/ )
+	UPROPERTY( /*Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly*/ )
 	TMap<UKIRCMode*, FKIRCModeListContainer> ListModes;
 
-	UPROPERTY( Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly )
+	UPROPERTY( Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly )
 	int32 Limit;
 
-	UPROPERTY( /*Category = "KeshIRC|Channell|Channel", VisibleInstanceOnly*/)
+	UPROPERTY( /*Category = "KeshIRC|Channel|Channel", VisibleInstanceOnly*/)
 	TMap<UKIRCUser*, FKIRCChannelUserInfo> Users;
 
 	UKIRCChannel( const class FObjectInitializer& ObjectInitializer );
