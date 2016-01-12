@@ -16,7 +16,7 @@ struct FKIRCCallback
 /**
 * Handles the responses from the server for the commands sent.
 */
-UCLASS( Category = "KeshIRC|Controller", Abstract, Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Abstract, Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCCommandResponseScanner : public UObject
 {
 	GENERATED_BODY()

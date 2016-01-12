@@ -13,7 +13,7 @@ class UKIRCClient;
 * Must set the Command string in the class defaults. 3 numbers for a numeric.
 * 001, 501, 163, etc.
 */
-UCLASS( Category = "KeshIRC|Controller", Abstract, Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced )
+UCLASS( ClassGroup = "KeshIRC|Controller", Abstract, Blueprintable, BlueprintType, EditInlineNew, DefaultToInstanced )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCBlueprintMessageHandler : public UObject
 {
 	GENERATED_BODY()

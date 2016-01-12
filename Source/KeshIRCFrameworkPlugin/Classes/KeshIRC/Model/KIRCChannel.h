@@ -10,7 +10,7 @@
 /**
 * Representation of a channel on an IRC server.
 */
-UCLASS( Category = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCChannel : public UKIRCObject
 {
 	GENERATED_BODY()

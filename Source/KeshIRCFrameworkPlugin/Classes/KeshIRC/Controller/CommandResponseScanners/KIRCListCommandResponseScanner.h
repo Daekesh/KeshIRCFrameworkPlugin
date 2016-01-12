@@ -26,7 +26,7 @@ struct FKIRCListResponseInfo
 /**
 * Handles responses to the List command.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCListCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

@@ -9,7 +9,7 @@ class UKIRCActorComponent;
 /**
 * Actor that holds a Kesh IRC Actor Component
 */
-UCLASS( Category = "KeshIRC", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API AKIRCActor : public AActor
 {
 	GENERATED_BODY()

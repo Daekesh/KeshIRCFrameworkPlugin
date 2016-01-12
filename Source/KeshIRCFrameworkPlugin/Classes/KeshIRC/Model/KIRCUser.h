@@ -11,7 +11,7 @@
 * Representation of a user on an IRC server. Adminning of channel/user relation is 
 * done through the channel object.
 */
-UCLASS( Category = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCUser : public UKIRCObject
 {
 	GENERATED_BODY()

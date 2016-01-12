@@ -10,7 +10,7 @@ class UKIRCBlueprintMessageHandler;
 /**
 * Actor component that houses an irc connection.
 */
-UCLASS( Category = "KeshIRC", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCActorComponent : public UActorComponent
 {
 	GENERATED_BODY()

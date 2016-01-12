@@ -75,7 +75,7 @@ struct FKIRCWhoIsResponseInfo
 /**
 * Handles responses to the WhoIs command.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCWhoIsCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

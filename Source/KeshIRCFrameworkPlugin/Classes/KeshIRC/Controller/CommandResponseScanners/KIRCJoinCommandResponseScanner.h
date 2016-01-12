@@ -13,7 +13,7 @@ class UKIRCClient;
 * Handles responses to the Join command. Be careful. This command may block up
 * the works if you use it to join a channel you're already in.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCJoinCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

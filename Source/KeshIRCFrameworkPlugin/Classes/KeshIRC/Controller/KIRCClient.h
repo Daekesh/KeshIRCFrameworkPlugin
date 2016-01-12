@@ -17,7 +17,7 @@
 /**
 * Representation of an IRC server connection and the user using it.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCClient : public UObject
 {
 	GENERATED_BODY()

@@ -12,7 +12,7 @@ class UKIRCClient;
 /**
 * Handles responses to the Topic command.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCTopicCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

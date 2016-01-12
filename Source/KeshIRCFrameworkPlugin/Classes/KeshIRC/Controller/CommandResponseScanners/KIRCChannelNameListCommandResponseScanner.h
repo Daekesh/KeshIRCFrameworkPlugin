@@ -29,7 +29,7 @@ struct FKIRCChannelNameListResponseInfo
 /**
 * Handles responses to the Names command.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCChannelNameListCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

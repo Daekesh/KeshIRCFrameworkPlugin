@@ -13,7 +13,7 @@ class FSocket;
 /**
 * Representation of an IRC server connection.
 */
-UCLASS( Category = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCServer : public UObject
 {
 	GENERATED_BODY()

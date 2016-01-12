@@ -12,7 +12,7 @@ class UKIRCClient;
 /**
 * Handles responses to the UserMode command.
 */
-UCLASS( Category = "KeshIRC|Controller", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Controller", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCUserModeCommandResponseScanner : public UKIRCCommandResponseScanner
 {
 	GENERATED_BODY()

@@ -9,7 +9,7 @@
 /**
 * Base class of everything on irc. Channels and users.
 */
-UCLASS( Category = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
+UCLASS( ClassGroup = "KeshIRC|Model|Model", Blueprintable, BlueprintType )
 class KESHIRCFRAMEWORKPLUGIN_API UKIRCObject : public UObject
 {
 	GENERATED_BODY()
