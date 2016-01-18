@@ -26,6 +26,9 @@ public:
 
 	UKIRCClient( const class FObjectInitializer& ObjectInitializer );
 
+	/* Initialises client values and creates a server. 
+	 * Does not connect to the server.
+	 */
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	virtual bool InitClient( const FString& ServerName, const FString& Host, int32 Port, const FString& Password, 
 							 const FString& NickName, const FString& Ident, const FString& RealName,
@@ -34,9 +37,19 @@ public:
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	UKIRCServer* const GetServer() const { return Server; }
 
+	// Convenience method to connect the server.
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
+	void Connect() { if ( Server != NULL ) { Server->Connect(); } }
+
+	// Convenience method to disconnect the server.
+	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
+	void Disconnect() { if ( Server != NULL ) { Server->Disconnect(); } }
+
+	// Returns the server user which represents this client on the network.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	UKIRCUser* const GetUser() const { return User; }
 
+	// If the client is not registered, non-registration commands cannot be used.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool HasRegistered() const { return bRegistered; }
 
@@ -44,6 +57,7 @@ public:
 	TArray<FString> GetMessageOfTheDayBP() const { return MOTD; }
 	const TArray<FString>& GetMessageOfTheDay() const { return MOTD; }
 
+	// Returns the list of nicknames this client attempts to use when connecting to a server.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	TArray<FString> GetNickNameListBP() const { return NickNameList; }
 	const TArray<FString>& GetNickNameList() const { return NickNameList; }
@@ -69,6 +83,7 @@ public:
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool HasModeString( const FString& ModeCharacter ) const;
 
+	// Returns true if this user is in at least 1 channel with the client.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	bool CanSeeUser( const FString& Name ) const 
 	{ 
@@ -88,6 +103,7 @@ public:
 		return ( Server->GetChannelByName( Name ) != NULL );
 	}
 
+	// When joining a channel with a key, the key is cached for later use. This returns the cached value.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintCallable )
 	const FString& GetCachedKeyForChannel( const FString& Channel ) const;
 
@@ -256,6 +272,16 @@ public:
 	 * Message Handling *
 	 *********************/
 
+	/* Handles a message direct from the server.
+	 *
+	 * Line: The full raw line received.
+	 * Source: The entity that sent the message.
+	 * Command: The first token following the source.
+	 * Params: The tokens following the command, preceding the first semi-colon.
+	 * Message: The string following the semi-colon.
+	 *
+	 * Example: source!ident@sourcehost COMMAND Param1 Param2 Param3 :Message here.
+	 */
 	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable, BlueprintNativeEvent )
 	void HandleMessage( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 	virtual void HandleMessage_Implementation( const FString& Line, UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
@@ -288,6 +314,7 @@ public:
 	 * Miscellaneous *
 	 *****************/
 
+	// Removes invalid characters from a string of disallowed characters.
 	UFUNCTION( Category = "KeshIRC|Controller|Client|Commands", BlueprintCallable, BlueprintPure )
 	static FString CleanString( const FString& DisallowedCharactes, const FString& String, bool bAllowUpperOctet = true );
 
@@ -329,6 +356,7 @@ protected:
 	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	UKIRCUser* User;
 
+	// The modes the client's user has set.
 	UPROPERTY( Category = "KeshIRC|Controller|Client", VisibleInstanceOnly )
 	TArray<const UKIRCMode*> UserModes;
 
@@ -425,7 +453,7 @@ protected:
 	void OnUserModeEvent( UKIRCUser* UserChanged, const UKIRCMode* Mode, EKIRCModeChange ModeChange );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )
-	void OnInvitedEvent( UKIRCUser* Source, const FString& InvitedTo );
+	void OnInvitedEvent( UKIRCUser* Source, const FString& InvitedTo, const FString& UserInvited );
 
 	// Channel is null if this is a private message to the client.
 	UFUNCTION( Category = "KeshIRC|Controller|Client", BlueprintImplementableEvent )

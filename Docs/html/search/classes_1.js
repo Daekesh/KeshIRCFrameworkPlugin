@@ -12,7 +12,7 @@ var searchData=
   ['fkircnumerics',['FKIRCNumerics',['../struct_f_k_i_r_c_numerics.html',1,'']]],
   ['fkircservernamelistresponseinfo',['FKIRCServerNameListResponseInfo',['../struct_f_k_i_r_c_server_name_list_response_info.html',1,'']]],
   ['fkircservernamelistresponseuserinfo',['FKIRCServerNameListResponseUserInfo',['../struct_f_k_i_r_c_server_name_list_response_user_info.html',1,'']]],
-  ['fkircserverticket',['FKIRCServerTicket',['../class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticket.html',1,'UKIRCServer']]],
+  ['fkircserverticker',['FKIRCServerTicker',['../class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticker.html',1,'UKIRCServer']]],
   ['fkircusermodes',['FKIRCUserModes',['../struct_f_k_i_r_c_user_modes.html',1,'']]],
   ['fkircwhoisresponsechannelinfo',['FKIRCWhoIsResponseChannelInfo',['../struct_f_k_i_r_c_who_is_response_channel_info.html',1,'']]],
   ['fkircwhoisresponseinfo',['FKIRCWhoIsResponseInfo',['../struct_f_k_i_r_c_who_is_response_info.html',1,'']]],

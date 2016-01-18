@@ -27,10 +27,18 @@ public:
 
 	FKIRCCommandResponseCallback OnScanComplete;
 
+	// Before this is run, the scanner will not check the server messages.
 	virtual void StartScan( UKIRCClient* Server );
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
-	virtual bool IsComplete() const { return State != EKIRCCommandState::S_Waiting;  }
+	virtual bool IsWaiting() const { return State == EKIRCCommandState::S_Waiting; }
+
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool IsScanning() const { return State == EKIRCCommandState::S_Scanning; }
+
+	// Returns true if 
+	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
+	virtual bool IsComplete() const { return State > EKIRCCommandState::S_Scanning; }
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
 	bool WasSuccessful() const { return State == EKIRCCommandState::S_Success; }
@@ -80,6 +88,7 @@ protected:
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
 	UKIRCClient* Client;
 
+	// The target of a scanner, e.g. the user that is being whoised or the channel having its topic set.
 	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleInstanceOnly, BlueprintReadOnly )
 	FString Target;	
 

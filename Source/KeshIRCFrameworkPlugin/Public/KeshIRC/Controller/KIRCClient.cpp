@@ -1340,7 +1340,7 @@ void UKIRCClient::OnInviteHandler( UKIRCUser* const Source, const FString& Comma
 {
 	if ( Server == NULL )
 	{
-		KIRCLog( Error, "Received invit with a null server." );
+		KIRCLog( Error, "Received invite with a null server." );
 		return;
 	}
 
@@ -1350,18 +1350,21 @@ void UKIRCClient::OnInviteHandler( UKIRCUser* const Source, const FString& Comma
 		return;
 	}
 
-	OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
-	OnInvitedEvent( Source, Params[ 1 ] );
+	OnInvitedDelegate.Broadcast( Source, Params[ 1 ], Params[ 0 ] );
+	OnInvitedEvent( Source, Params[ 1 ], Params[ 0 ] );
+
+	if ( Source != NULL )
+		Source->OnInviteDelegate.Broadcast( Source, Params[ 1 ], Params[ 0 ] );
 
 	UKIRCUser* const User = Server->GetUserByName( Params[ 0 ] );
 
 	if ( User != NULL )
-		User->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
+		User->OnInvitedDelegate.Broadcast( Source, Params[ 1 ], Params[ 0 ] );
 
 	UKIRCChannel* const Channel = Server->GetChannelByName( Params[ 1 ] );
 
 	if ( Channel != NULL )
-		Channel->OnInvitedDelegate.Broadcast( Source, Params[ 1 ] );
+		Channel->OnInviteDelegate.Broadcast( Source, Params[ 1 ], Params[ 0 ] );
 }
 
 

@@ -17,6 +17,7 @@ class KESHIRCFRAMEWORKPLUGIN_API UKIRCChannel : public UKIRCObject
 
 public:
 
+	// Returns true if the first character in the name is a valid channel prefix.
 	UFUNCTION( Category = "KeshIRC|Model|Channel", BlueprintCallable, BlueprintPure )
 	static bool HasChannelPrefix( const FString& ObjectName );
 
@@ -170,7 +171,7 @@ public:
 	FKIRCChannelTopicChange OnTopicChangedDelegate;
 
 	UPROPERTY( Category = "KeshIRC|Controller|Channel", BlueprintAssignable )
-	FKIRCChannelInvite OnInvitedDelegate;
+	FKIRCChannelInvite OnInviteDelegate;
 
 	UPROPERTY( Category = "KeshIRC|Controller|Channel", BlueprintAssignable )
 	FKIRCChannelBodyReceive OnTopicReceiveDelegate;

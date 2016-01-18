@@ -58,7 +58,7 @@ var class_u_k_i_r_c_channel =
     [ "ListModes", "class_u_k_i_r_c_channel.html#ad731a2413d968b581ec53b6342df651f", null ],
     [ "OnChannelModeDelegate", "class_u_k_i_r_c_channel.html#a7bfa10ca5201ef8f4f4deaf119c8e01a", null ],
     [ "OnChannelUserModeDelegate", "class_u_k_i_r_c_channel.html#abb3cfda7b5409ca9e10561ccf15e6fd9", null ],
-    [ "OnInvitedDelegate", "class_u_k_i_r_c_channel.html#a4a672aacb69565c4eb5699e196b986bf", null ],
+    [ "OnInviteDelegate", "class_u_k_i_r_c_channel.html#a33ad127bab8e919fde6ecbaadb76ed74", null ],
     [ "OnJoinedDelegate", "class_u_k_i_r_c_channel.html#af7daa7ff6de52a2ec55d4a1c8aaf096c", null ],
     [ "OnKickedDelegate", "class_u_k_i_r_c_channel.html#a76e90877aa5baac713576f2ad27ab00c", null ],
     [ "OnMessageDelegate", "class_u_k_i_r_c_channel.html#ace6a1602361b6370cc0e3b9e2adbf435", null ],

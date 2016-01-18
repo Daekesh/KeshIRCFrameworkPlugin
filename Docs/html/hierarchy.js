@@ -20,7 +20,7 @@ var hierarchy =
     [ "FKIRCWhoResponseInfo", "struct_f_k_i_r_c_who_response_info.html", null ],
     [ "FKIRCWhoWasResponseInfo", "struct_f_k_i_r_c_who_was_response_info.html", null ],
     [ "FTickableGameObject", null, [
-      [ "UKIRCServer::FKIRCServerTicket", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticket.html", null ]
+      [ "UKIRCServer::FKIRCServerTicker", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticker.html", null ]
     ] ],
     [ "IModuleInterface", null, [
       [ "IKeshIRCFrameworkPlugin", "class_i_kesh_i_r_c_framework_plugin.html", [

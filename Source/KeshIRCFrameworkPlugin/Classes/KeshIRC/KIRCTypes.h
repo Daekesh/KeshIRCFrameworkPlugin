@@ -119,9 +119,10 @@ enum class EKIRCModeParamRequired : uint8
 UENUM( BlueprintType )
 enum class EKIRCCommandState : uint8
 {
-	S_Waiting UMETA( DisplayName = "Waiting" ),
-	S_Success UMETA( DisplayName = "Success" ),
-	S_Failure UMETA( DisplayName = "Failure" )
+	S_Waiting  UMETA( DisplayName = "Waiting" ),
+	S_Scanning UMETA( DisplayName = "Scanning" ),
+	S_Success  UMETA( DisplayName = "Success" ),
+	S_Failure  UMETA( DisplayName = "Failure" )
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam( FKIRCServerConnected, UKIRCServer* const, Server );
@@ -138,7 +139,7 @@ typedef void( __cdecl UObject::*FKIRCIncomingMessageHandlerDelegate )( UKIRCUser
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCUnhandledNumeric, UKIRCServer* const, Server, int32, Numeric, const TArray<FString>&, Params, const FString&, Message );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCUserMessage, UKIRCUser* const, Source, UKIRCChannel* const, Channel, EKIRCMessageType, MessageType, const FString&, Message );
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelInvite, UKIRCUser* const, Source, const FString&, ChannelName );
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelInvite, UKIRCUser* const, Source, const FString&, ChannelName, const FString&, UserInvited );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FKIRCChannelJoin, UKIRCChannel* const, Channel, UKIRCUser* const, Source );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams( FKIRCChannelPart, UKIRCChannel* const, Channel, UKIRCUser* const, Source, const FString&, Message );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FKIRCChannelKick, UKIRCChannel* const, Channel, UKIRCUser* const, Kicker, UKIRCUser* const, Kickee, const FString&, Reason );

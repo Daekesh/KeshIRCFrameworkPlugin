@@ -86,7 +86,7 @@ bool UKIRCServer::InitServer( const FString& ServerName, const FString& Host, in
 	HostAddr->SetIp( 0 );
 	HostAddr->SetPort( Port );
 	HostResolver = SocketSub->GetHostByName( TCHAR_TO_ANSI( *Host ) );
-	Ticker = new FKIRCServerTicket( this );
+	Ticker = new FKIRCServerTicker( this );
 	
 	return true;
 }

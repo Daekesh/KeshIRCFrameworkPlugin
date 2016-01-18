@@ -141,6 +141,12 @@ virtual bool&#160;</td><td class="memItemRight" valign="bottom"><b>InitClient</b
 <tr class="memitem:a82ee37001a0916a6e82d3a632abd34fa"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a82ee37001a0916a6e82d3a632abd34fa"></a>
 <a class="el" href="class_u_k_i_r_c_server.html">UKIRCServer</a> *const&#160;</td><td class="memItemRight" valign="bottom"><b>GetServer</b> () const </td></tr>
 <tr class="separator:a82ee37001a0916a6e82d3a632abd34fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6c0c724d41c47cddb56d13b5079536cc"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6c0c724d41c47cddb56d13b5079536cc"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>Connect</b> ()</td></tr>
+<tr class="separator:a6c0c724d41c47cddb56d13b5079536cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6565116ebedfa95d433394425e1ab8d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af6565116ebedfa95d433394425e1ab8d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>Disconnect</b> ()</td></tr>
+<tr class="separator:af6565116ebedfa95d433394425e1ab8d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af4391cc3c15990face8908c9cdf49494"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="af4391cc3c15990face8908c9cdf49494"></a>
 <a class="el" href="class_u_k_i_r_c_user.html">UKIRCUser</a> *const&#160;</td><td class="memItemRight" valign="bottom"><b>GetUser</b> () const </td></tr>
 <tr class="separator:af4391cc3c15990face8908c9cdf49494"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -489,9 +495,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>OnRegisteredEvent</b>
 <tr class="memitem:ade1a57ee3feaff7e1bdb30411ade507d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ade1a57ee3feaff7e1bdb30411ade507d"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>OnUserModeEvent</b> (<a class="el" href="class_u_k_i_r_c_user.html">UKIRCUser</a> *UserChanged, const <a class="el" href="class_u_k_i_r_c_mode.html">UKIRCMode</a> *Mode, EKIRCModeChange ModeChange)</td></tr>
 <tr class="separator:ade1a57ee3feaff7e1bdb30411ade507d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5f0238501240c2104f2ba920d27b28dc"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a5f0238501240c2104f2ba920d27b28dc"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>OnInvitedEvent</b> (<a class="el" href="class_u_k_i_r_c_user.html">UKIRCUser</a> *Source, const FString &amp;InvitedTo)</td></tr>
-<tr class="separator:a5f0238501240c2104f2ba920d27b28dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa757233bbe901ab309b4c7c0bed5a2d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aaa757233bbe901ab309b4c7c0bed5a2d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>OnInvitedEvent</b> (<a class="el" href="class_u_k_i_r_c_user.html">UKIRCUser</a> *Source, const FString &amp;InvitedTo, const FString &amp;UserInvited)</td></tr>
+<tr class="separator:aaa757233bbe901ab309b4c7c0bed5a2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7f8d3a28048d060ced824751ed20500e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7f8d3a28048d060ced824751ed20500e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>OnMessageEvent</b> (<a class="el" href="class_u_k_i_r_c_user.html">UKIRCUser</a> *Source, <a class="el" href="class_u_k_i_r_c_channel.html">UKIRCChannel</a> *Channel, EKIRCMessageType MessageType, const FString &amp;Message)</td></tr>
 <tr class="separator:a7f8d3a28048d060ced824751ed20500e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -616,7 +622,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>UKIRCUserModeCommand
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="class_u_k_i_r_c_client.html">UKIRCClient</a></li>
-    <li class="footer">Generated on Wed Jan 13 2016 15:25:40 for Kesh IRC Framework Plugin by
+    <li class="footer">Generated on Mon Jan 18 2016 04:57:57 for Kesh IRC Framework Plugin by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>

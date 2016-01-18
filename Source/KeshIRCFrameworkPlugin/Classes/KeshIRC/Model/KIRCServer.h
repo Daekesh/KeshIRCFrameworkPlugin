@@ -227,16 +227,19 @@ protected:
 
 	friend class UKIRCClient;
 
-	class FKIRCServerTicket : public FTickableGameObject
+	class FKIRCServerTicker : public FTickableGameObject
 	{		
 		UKIRCServer* Server;
+
 	public:
-		FKIRCServerTicket( UKIRCServer* Server ) { this->Server = Server; }		
+
+		FKIRCServerTicker( UKIRCServer* Server ) { this->Server = Server; }		
 		virtual bool IsTickableWhenPaused() const override { return true; }
 		virtual bool IsTickableInEditor() const override { return true; }
 		virtual bool IsTickable() const override { return Server != NULL; }
 		virtual void Tick( float DeltaTime ) { Server->Tick(); }
-		virtual TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT( FKIRCServerTicket, STATGROUP_Tickables ); }
+		virtual TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT( FKIRCServerTicker, STATGROUP_Tickables ); }
+
 	};
 
 
@@ -282,7 +285,7 @@ protected:
 	UPROPERTY()
 	TMap<FString, FString> Settings;
 
-	FKIRCServerTicket* Ticker;
+	FKIRCServerTicker* Ticker;
 	FResolveInfo* HostResolver;
 	TSharedPtr<FInternetAddr> HostAddr;
 	FSocket* Socket;

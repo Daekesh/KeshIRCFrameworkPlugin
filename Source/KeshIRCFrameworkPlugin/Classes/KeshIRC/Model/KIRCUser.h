@@ -51,15 +51,21 @@ public:
 	TArray<UKIRCChannel*> GetChannelsBP() const { return Channels; }
 	const TArray<UKIRCChannel*>& GetChannels() const { return Channels; }
 
+	// Returns true if the this user object is the client's user.
 	UFUNCTION( Category = "KeshIRC|Model|User", BlueprintCallable )
 	bool IsClient() const;
 
+	// Fires on public and private messages. On messages, actions, notices and ctcps.
 	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCUserMessage OnMessageDelegate;
 
-	// This user is sending the invite
+	// This user is receiving the invite
 	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelInvite OnInvitedDelegate; 
+
+	// This user is sending the invite
+	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
+	FKIRCChannelInvite OnInviteDelegate; 
 
 	UPROPERTY( Category = "KeshIRC|Controller|Client", BlueprintAssignable )
 	FKIRCChannelJoin OnJoinedDelegate;

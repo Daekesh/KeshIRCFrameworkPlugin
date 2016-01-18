@@ -27,6 +27,7 @@ void UKIRCCommandResponseScanner::StartScan( UKIRCClient* Client )
 	}
 
 	this->Client = Client;
+	State = EKIRCCommandState::S_Scanning;
 	RegisterCallbacks();
 }
 

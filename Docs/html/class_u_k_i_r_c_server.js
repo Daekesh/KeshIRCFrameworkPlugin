@@ -1,6 +1,6 @@
 var class_u_k_i_r_c_server =
 [
-    [ "FKIRCServerTicket", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticket.html", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticket" ],
+    [ "FKIRCServerTicker", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticker.html", "class_u_k_i_r_c_server_1_1_f_k_i_r_c_server_ticker" ],
     [ "UKIRCServer", "class_u_k_i_r_c_server.html#a7ad4448e93daafa8d1d13d6686d22439", null ],
     [ "~UKIRCServer", "class_u_k_i_r_c_server.html#a117ef9f01142e7dd76b65c54835b1a8b", null ],
     [ "AddChannelMode", "class_u_k_i_r_c_server.html#ade23ea4dcb5a503530558c0a9145e589", null ],
@@ -70,7 +70,7 @@ var class_u_k_i_r_c_server =
     [ "Socket", "class_u_k_i_r_c_server.html#ad804dd9d1e240b8fe8551e82c34e1cc8", null ],
     [ "SocketBuffer", "class_u_k_i_r_c_server.html#aaba0abb219917f86d0050dafc93ac7ba", null ],
     [ "State", "class_u_k_i_r_c_server.html#a14828fa5f07832daa93d729d982f2bc8", null ],
-    [ "Ticker", "class_u_k_i_r_c_server.html#a26ee4fdaea52483df3759c6509d51e71", null ],
+    [ "Ticker", "class_u_k_i_r_c_server.html#abf7415f6092a152b989bc282c45a049c", null ],
     [ "UserModes", "class_u_k_i_r_c_server.html#afb1833fa10a31bbc803c447184fc7ca4", null ],
     [ "Users", "class_u_k_i_r_c_server.html#ace1800281c7a2d9e6aa8dfea280dff22", null ],
     [ "Version", "class_u_k_i_r_c_server.html#a8f300256ef78e3ff8f4b5d7c29c61d9f", null ]

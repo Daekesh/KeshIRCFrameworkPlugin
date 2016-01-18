@@ -36,6 +36,7 @@ var class_u_k_i_r_c_user =
     [ "OnChannelUserModeChangedDelegate", "class_u_k_i_r_c_user.html#ad61a3a42bfd7fd544d573b11ca102a55", null ],
     [ "OnChannelUserModeDelegate", "class_u_k_i_r_c_user.html#afe6e32d64e60239dc4f4f2694ab4a445", null ],
     [ "OnInvitedDelegate", "class_u_k_i_r_c_user.html#ad7c8197552303d9ce8c297f7ad67e09a", null ],
+    [ "OnInviteDelegate", "class_u_k_i_r_c_user.html#a6cbefb2b52f87bc88599beebcdd09d51", null ],
     [ "OnJoinedDelegate", "class_u_k_i_r_c_user.html#a987a19746a83a239d4cd25d0147c7cc9", null ],
     [ "OnKickDelegate", "class_u_k_i_r_c_user.html#a2847fc94b9fa53584199a8f99857fcef", null ],
     [ "OnKickedDelegate", "class_u_k_i_r_c_user.html#ad2f482ab726f0452c1f76938457b846e", null ],

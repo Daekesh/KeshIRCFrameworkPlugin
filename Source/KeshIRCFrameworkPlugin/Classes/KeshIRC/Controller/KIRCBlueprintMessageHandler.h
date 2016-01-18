@@ -34,9 +34,11 @@ public:
 	UFUNCTION()
 	void CommandCallback( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
+	// Implement this method to handle commands.
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintImplementableEvent )
 	void HandleCommand( UKIRCUser* Source, const FString& Command, const TArray<FString>& Params, const FString& Message );
 
+	// Implement this method to handle numerics.
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintImplementableEvent )
 	void HandleNumeric( UKIRCUser* Source, int32 Numeric, const TArray<FString>& Params, const FString& Message );
 

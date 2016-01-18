@@ -31,6 +31,8 @@ var class_u_k_i_r_c_command_response_scanner =
     [ "HandleNumeric", "class_u_k_i_r_c_command_response_scanner.html#abd4cc9312444803357c87729442fc3b3", null ],
     [ "HandleNumeric_Implementation", "class_u_k_i_r_c_command_response_scanner.html#ad1f0893c7537c580dab438effa4e7bff", null ],
     [ "IsComplete", "class_u_k_i_r_c_command_response_scanner.html#ab1362ba3e3851740447d98558a3faa6c", null ],
+    [ "IsScanning", "class_u_k_i_r_c_command_response_scanner.html#a878de41bf31b389cf2c9c5ba12db5506", null ],
+    [ "IsWaiting", "class_u_k_i_r_c_command_response_scanner.html#a0aa4ca4b12bc995457570e6a77cff47e", null ],
     [ "RegisterCallback", "class_u_k_i_r_c_command_response_scanner.html#a9aa9a4467caf76062f964c89abc12fce", null ],
     [ "RegisterCallbacks", "class_u_k_i_r_c_command_response_scanner.html#af8d0de22af60c659fe044e242b6fc823", null ],
     [ "RemoveRegisteredCallbacks", "class_u_k_i_r_c_command_response_scanner.html#acab5decc403b0adb20e5d30941af55d4", null ],

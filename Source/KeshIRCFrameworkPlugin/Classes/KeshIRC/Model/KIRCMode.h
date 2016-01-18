@@ -20,6 +20,7 @@ public:
 	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
 	const FString& GetMode() const { return Mode; }
 
+	// User, channel unary, channel param, channel list or channel user.
 	UFUNCTION( Category = "KeshIRC|Model|Mode", BlueprintCallable )
 	EKIRCModeType GetType() const { return Type; }
 
