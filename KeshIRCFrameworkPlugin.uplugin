@@ -8,7 +8,7 @@
   "Category": "Kesh.Network.IRC",
   "CreatedBy": "Matthew 'Daekesh' Chapman'",
   "CanContainContent": false,
-  "EnabledByDefault": false,
+  "EnabledByDefault": true,
 
   "Modules": [
     {
