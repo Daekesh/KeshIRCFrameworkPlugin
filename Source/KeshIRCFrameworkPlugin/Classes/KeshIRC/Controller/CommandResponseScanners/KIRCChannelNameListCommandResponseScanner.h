@@ -13,16 +13,16 @@ struct FKIRCChannelNameListResponseInfo
 {
 	GENERATED_BODY()
 	
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString User = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	bool bOp = false;
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	bool bHalfOp = false;
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	bool bVoice = false;
 };
 

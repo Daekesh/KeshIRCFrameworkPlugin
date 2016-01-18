@@ -13,22 +13,22 @@ struct FKIRCWhoWasResponseInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString NickName = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString Ident = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString Host = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString RealName = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString ServerHost = "";
 
-	UPROPERTY( Category = "KeshIRC|Controller", VisibleAnywhere, BlueprintReadOnly )
+	UPROPERTY( Category = "KeshIRC|Controller|Command Response Scanner", VisibleAnywhere, BlueprintReadOnly )
 	FString ServerInfo = "";
 };
 
