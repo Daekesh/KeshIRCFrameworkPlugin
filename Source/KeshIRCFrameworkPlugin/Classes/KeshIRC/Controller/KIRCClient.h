@@ -8,11 +8,20 @@
 #include "KeshIRC/Model/KIRCServer.h"
 #include "KIRCClient.generated.h"
 
-#define Cmd( Format, ... ) SendCommand( FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
-#define CmdScan( ScannerClass, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass )
-#define CmdScanCB( ScannerClass, Object, Function, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, ScannerClass, Object )
-#define CmdScanTgt( ScannerClass, Target, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, NULL, NULL, Target )
-#define CmdScanCbTgt( ScannerClass, Object, Function, Target, Format, ... ) SendCommandCallback( FString::Printf( TEXT( Format ), __VA_ARGS__ ), ScannerClass, ScannerClass, Object, Target )
+#define KIRCCmd( Cmd ) SendCommand( Cmd )
+#define KIRCCmdArgs( Format, ... ) KIRCCmd( FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
+
+#define KIRCCmdScan( ScannerClass, Cmd ) SendCommandCallback( Cmd, ScannerClass )
+#define KIRCCmdScanArgs( ScannerClass, Format, ... ) KIRCCmdScan( ScannerClass, FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
+
+#define KIRCCmdScanCB( ScannerClass, Object, Function, Cmd ) SendCommandCallback( Cmd, ScannerClass, ScannerClass, Object )
+#define KIRCCmdScanCBArgs( ScannerClass, Object, Function, Format, ... ) KIRCCmdScanCB( ScannerClass, Object, Function, FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
+
+#define KIRCCmdScanTgt( ScannerClass, Target, Cmd ) SendCommandCallback( Cmd, ScannerClass, NULL, NULL, Target )
+#define KIRCCmdScanTgtArgs( ScannerClass, Target, Format, ... ) KIRCCmdScanTgt( ScannerClass, Target, FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
+
+#define KIRCCmdScanCbTgt( ScannerClass, Object, Function, Target, Cmd ) SendCommandCallback( Cmd, ScannerClass, ScannerClass, Object, Target )
+#define KIRCCmdScanCbTgtArgs( ScannerClass, Object, Function, Target, Format, ... ) KIRCCmdScanCbTgt( ScannerClass, Object, Function, Target, FString::Printf( TEXT( Format ), __VA_ARGS__ ) )
 
 /**
 * Representation of an IRC server connection and the user using it.

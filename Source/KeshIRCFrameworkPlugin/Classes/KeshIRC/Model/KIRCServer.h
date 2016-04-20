@@ -233,7 +233,7 @@ protected:
 
 	public:
 
-		FKIRCServerTicker( UKIRCServer* Server ) { this->Server = Server; }		
+		FKIRCServerTicker( UKIRCServer* InServer ) { Server = InServer; }
 		virtual bool IsTickableWhenPaused() const override { return true; }
 		virtual bool IsTickableInEditor() const override { return true; }
 		virtual bool IsTickable() const override { return Server != NULL; }
@@ -305,7 +305,7 @@ protected:
 
 	void SetSetting( const FString& Setting, const FString& Value ) { Settings.Emplace( Setting.ToUpper(), Value ); }
 	
-	virtual void SetState( EKIRCServerState State ) { this->State = State; }
+	virtual void SetState( EKIRCServerState NewState ) { State = NewState; }
 
 	virtual void Tick();
 

@@ -150,7 +150,7 @@ protected:
 	virtual void SetName( const FString& Name ) override;
 
 	// Updates the real name of this user.
-	virtual void SetRealName( const FString& RealName ) { this->RealName = RealName; }
+	virtual void SetRealName( const FString& NewRealName ) { RealName = NewRealName; }
 
 	// Method to add the channel to the internal list. Returns true if added.
 	virtual bool JoinChannel( UKIRCChannel* const Channel );

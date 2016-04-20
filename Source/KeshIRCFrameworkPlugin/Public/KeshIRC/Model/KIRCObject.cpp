@@ -12,9 +12,9 @@ UKIRCObject::UKIRCObject( const class FObjectInitializer& ObjectInitializer )
 }
 
 
-void UKIRCObject::InitObject( const FString& Name )
+void UKIRCObject::InitObject( const FString& ObjectName )
 {
-	SetName( Name );
+	SetName( ObjectName );
 }
 
 

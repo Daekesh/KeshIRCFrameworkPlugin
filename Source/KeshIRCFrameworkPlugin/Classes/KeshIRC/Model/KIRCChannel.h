@@ -239,7 +239,7 @@ protected:
 	
 	virtual void RemoveListModeEntry( const UKIRCMode* const Mode, const FString& Entry );
 
-	virtual void SetLimit( int32 Limit ) { this->Limit = Limit; }
+	virtual void SetLimit( int32 NewLimit ) { Limit = NewLimit; }
 
 	virtual void AddUserMode( const UKIRCUser* const User, const UKIRCMode* const Mode );
 

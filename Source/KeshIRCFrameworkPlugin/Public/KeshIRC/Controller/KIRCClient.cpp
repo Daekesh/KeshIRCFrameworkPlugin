@@ -313,10 +313,10 @@ void UKIRCClient::Register()
 	}
 	
 	if ( Server->GetPassword().Len() > 0 )
-		Cmd( "PASSWORD %s", *Server->GetPassword() );
+		KIRCCmdArgs( "PASSWORD %s", *Server->GetPassword() );
 
-	Cmd( "USER %s 8 * :%s", *User->GetIdent(), *User->GetRealName() );
-	Cmd( "NICK %s", *User->GetName() );
+	KIRCCmdArgs( "USER %s 8 * :%s", *User->GetIdent(), *User->GetRealName() );
+	KIRCCmdArgs( "NICK %s", *User->GetName() );
 }
 
 
@@ -596,7 +596,7 @@ void UKIRCClient::OnNickNegotaitionNextNickHandler( UKIRCUser* const Source, con
 		}
 	}	
 
-	Cmd( "NICK %s", *User->GetName() );
+	KIRCCmdArgs( "NICK %s", *User->GetName() );
 }
 
 
@@ -1736,16 +1736,16 @@ bool UKIRCClient::Message( const FString& Target, EKIRCMessageType Type, const F
 	{
 		default:
 		case EKIRCMessageType::T_Message:
-			return Cmd( "PRIVMSG %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 10 - Target.Len() ) );
+			return KIRCCmdArgs( "PRIVMSG %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 10 - Target.Len() ) );
 
 		case EKIRCMessageType::T_Emote:
-			return Cmd( "PRIVMSG %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 12 - Target.Len() ) );
+			return KIRCCmdArgs( "PRIVMSG %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 12 - Target.Len() ) );
 
 		case EKIRCMessageType::T_Notice:
-			return Cmd( "NOTICE %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 9 - Target.Len() ) );
+			return KIRCCmdArgs( "NOTICE %s :%s", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 9 - Target.Len() ) );
 
 		case EKIRCMessageType::T_CTCP:
-			return Cmd( "NOTICE %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 11 - Target.Len() ) );
+			return KIRCCmdArgs( "NOTICE %s :\1%s\1", *Target, *Message.Left( UKIRCServer::MaxCommandLength - 11 - Target.Len() ) );
 	}
 }
 
@@ -1764,7 +1764,7 @@ bool UKIRCClient::ChangeUserMode( const UKIRCMode* const Mode, EKIRCModeChange C
 		return false;
 	}
 
-	return Cmd( "MODE %s %s%s", *User->GetName(), *FString( Change == EKIRCModeChange::M_Add ? "+" : "-" ), *Mode->GetMode() );
+	return KIRCCmdArgs( "MODE %s %s%s", *User->GetName(), *FString( Change == EKIRCModeChange::M_Add ? "+" : "-" ), *Mode->GetMode() );
 }
 
 
@@ -1788,11 +1788,11 @@ bool UKIRCClient::JoinChannel( const FString& Channel, const FString& Key )
 		ActualKey = ChannelKeyCache[ Channel.ToUpper() ];
 
 	if ( ActualKey.Len() == 0 )
-		return CmdScanTgt( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s", *Channel );
+		return KIRCCmdScanTgtArgs( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s", *Channel );
 
 	else
 	{
-		return CmdScanTgt( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s %s", *Channel, *ActualKey );
+		return KIRCCmdScanTgtArgs( UKIRCJoinCommandResponseScanner::StaticClass(), Channel, "JOIN %s %s", *Channel, *ActualKey );
 		ChannelKeyCache.Emplace( Channel.ToUpper(), ActualKey );
 	}
 }
@@ -1813,10 +1813,10 @@ bool UKIRCClient::PartChannel( const UKIRCChannel* const Channel, const FString&
 	}
 
 	if ( Message.Len() == 0 )
-		return CmdScanTgt( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s", *Channel->GetName() );
+		return KIRCCmdScanTgtArgs( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s", *Channel->GetName() );
 
 	else
-		return CmdScanTgt( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s :%s", *Channel->GetName(), 
+		return KIRCCmdScanTgtArgs( UKIRCPartCommandResponseScanner::StaticClass(), Channel->GetName(), "PART %s :%s", *Channel->GetName(),
 						   *Message.Left( UKIRCServer::MaxCommandLength - 7 - Channel->GetName().Len() ) );
 }
 
@@ -1835,7 +1835,7 @@ bool UKIRCClient::InviteUserToChannel( const FString& NickName, const UKIRCChann
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCInviteCommandResponseScanner::StaticClass(), NickName + "," + Channel->GetName(), "INVITE %s %s", *NickName, *Channel->GetName() );
+	return KIRCCmdScanTgtArgs( UKIRCInviteCommandResponseScanner::StaticClass(), NickName + "," + Channel->GetName(), "INVITE %s %s", *NickName, *Channel->GetName() );
 }
 
 
@@ -1854,11 +1854,11 @@ bool UKIRCClient::KickUserFromChannel( const UKIRCChannel* const Channel, const 
 	}
 
 	if ( Message.Len() == 0 )
-		return CmdScanTgt( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
+		return KIRCCmdScanTgtArgs( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
 						   "KICK %s %s", *Channel->GetName(), *User->GetName() );
 
 	else
-		return CmdScanTgt( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
+		return KIRCCmdScanTgtArgs( UKIRCKickCommandResponseScanner::StaticClass(), User->GetName() + "," + Channel->GetName(),
 						   "KICK %s %s :%s", *Channel->GetName(), *User->GetName(), 
 						   *Message.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() - User->GetName().Len() ) );
 }
@@ -1889,7 +1889,7 @@ bool UKIRCClient::ChangeChannelMode( const UKIRCChannel* const Channel, const UK
 			return false;
 		}
 
-		return Cmd(
+		return KIRCCmdArgs(
 			"MODE %s %s%s",
 			*Channel->GetName(),
 			*FString( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
@@ -1935,7 +1935,7 @@ bool UKIRCClient::ChangeChannelParamMode( const UKIRCChannel* const Channel, con
 			return false;
 		}
 
-		return Cmd(
+		return KIRCCmdArgs(
 			"MODE %s %s%s %s",
 			*Channel->GetName(),
 			*FString( ModeChange == EKIRCModeChange::M_Add ? "+" : "-" ),
@@ -1991,7 +1991,7 @@ void UKIRCClient::FlushModeChanges( const UKIRCChannel* const Channel )
 {
 	if ( Channel != NULL )
 	{
-		Cmd(
+		KIRCCmdArgs(
 			"MODE %s %s %s",
 			*Channel->GetName(),
 			*ModeChangeBuilderModeList,
@@ -2014,7 +2014,7 @@ bool UKIRCClient::QueryObjectModes( const UKIRCObject* const Object )
 		return false;
 	}
 
-	return Cmd( "MODE %s", *Object->GetName() );
+	return KIRCCmdArgs( "MODE %s", *Object->GetName() );
 }
 
 
@@ -2038,7 +2038,7 @@ bool UKIRCClient::QueryChannelModeList( const UKIRCChannel* const Channel, const
 		return false;
 	}
 
-	return Cmd( "MODE %s %s", *Channel->GetName(), *Mode->GetMode() );
+	return KIRCCmdArgs( "MODE %s %s", *Channel->GetName(), *Mode->GetMode() );
 }
 
 
@@ -2047,7 +2047,7 @@ bool UKIRCClient::ChangeNickname( const FString& NewName )
 	if ( NewName.Len() == 0 )
 		return false;
 
-	return CmdScanTgt( UKIRCNickCommandResponseScanner::StaticClass(), NewName, "NICK %s", *NewName );
+	return KIRCCmdScanTgtArgs( UKIRCNickCommandResponseScanner::StaticClass(), NewName, "NICK %s", *NewName );
 }
 
 
@@ -2059,7 +2059,7 @@ bool UKIRCClient::QueryTopic( const FString& Channel )
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCTopicQueryCommandResponseScanner::StaticClass(), Channel, "TOPIC %s", *Channel );
+	return KIRCCmdScanTgtArgs( UKIRCTopicQueryCommandResponseScanner::StaticClass(), Channel, "TOPIC %s", *Channel );
 }
 
 
@@ -2071,7 +2071,7 @@ bool UKIRCClient::SetTopic( const UKIRCChannel* const Channel, const FString& Bo
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCTopicCommandResponseScanner::StaticClass(), Channel->GetName(), 
+	return KIRCCmdScanTgtArgs( UKIRCTopicCommandResponseScanner::StaticClass(), Channel->GetName(),
 					   "TOPIC %s :%s", *Channel->GetName(), 
 					   *Body.Left( UKIRCServer::MaxCommandLength - 8 - Channel->GetName().Len() ) );
 }
@@ -2079,7 +2079,7 @@ bool UKIRCClient::SetTopic( const UKIRCChannel* const Channel, const FString& Bo
 
 bool UKIRCClient::GetServerNameList()
 {
-	return CmdScan( UKIRCServerNameListCommandResponseScanner::StaticClass(), "NAMES" );
+	return KIRCCmdScan( UKIRCServerNameListCommandResponseScanner::StaticClass(), "NAMES" );
 }
 
 
@@ -2091,27 +2091,27 @@ bool UKIRCClient::GetChannelNameList( const FString& Channel )
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCChannelNameListCommandResponseScanner::StaticClass(), Channel, "NAMES %s", *Channel );
+	return KIRCCmdScanTgtArgs( UKIRCChannelNameListCommandResponseScanner::StaticClass(), Channel, "NAMES %s", *Channel );
 }
 
 
 bool UKIRCClient::ListChannels( const FString& Mask )
 {
 	if ( Mask.Len() == 0 )
-		return CmdScan( UKIRCListCommandResponseScanner::StaticClass(), "LIST" );
+		return KIRCCmdScan( UKIRCListCommandResponseScanner::StaticClass(), "LIST" );
 
 	else
-		return CmdScan( UKIRCListCommandResponseScanner::StaticClass(), "LIST %s", *Mask.Left( UKIRCServer::MaxCommandLength - 5 ) );
+		return KIRCCmdScanArgs( UKIRCListCommandResponseScanner::StaticClass(), "LIST %s", *Mask.Left( UKIRCServer::MaxCommandLength - 5 ) );
 }
 
 
 bool UKIRCClient::Who( const FString& Mask )
 {
 	if ( Mask.Len() == 0 )
-		return CmdScan( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO" );
+		return KIRCCmdScan( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO" );
 
 	else
-		return CmdScan( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO %s", *Mask );
+		return KIRCCmdScanArgs( UKIRCWhoCommandResponseScanner::StaticClass(), "WHO %s", *Mask );
 }
 
 
@@ -2123,7 +2123,7 @@ bool UKIRCClient::WhoIs( const FString& Name )
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCWhoIsCommandResponseScanner::StaticClass(), Name, "WHOIS %s", *Name );
+	return KIRCCmdScanTgtArgs( UKIRCWhoIsCommandResponseScanner::StaticClass(), Name, "WHOIS %s", *Name );
 }
 
 
@@ -2135,20 +2135,20 @@ bool UKIRCClient::WhoWas( const FString& Name )
 		return false;
 	}
 
-	return CmdScanTgt( UKIRCWhoWasCommandResponseScanner::StaticClass(), Name, "WHOWAS %s", *Name );
+	return KIRCCmdScanTgtArgs( UKIRCWhoWasCommandResponseScanner::StaticClass(), Name, "WHOWAS %s", *Name );
 }
 
 
 bool UKIRCClient::Away( const FString& Message )
 {
 	// Force use of away message.
-	return CmdScan( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY :%s", *( Message.Len() > 0 ? Message : "Away" ) );
+	return KIRCCmdScanArgs( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY :%s", *( Message.Len() > 0 ? Message : "Away" ) );
 }
 
 
 bool UKIRCClient::Return()
 {
-	return CmdScan( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY" );
+	return KIRCCmdScan( UKIRCAwayCommandResponseScanner::StaticClass(), "AWAY" );
 }
 
 
@@ -2165,7 +2165,7 @@ bool UKIRCClient::AreUsersOnline( const TArray<FString>& NickNames )
 	for ( const FString& Nick : NickNames )
 		NickList += ( NickList.Len() > 0 ? " " : "" ) + Nick;
 	
-	return CmdScan( UKIRCIsOnCommandResponseScanner::StaticClass(), "ISON %s", *NickList );
+	return KIRCCmdScanArgs( UKIRCIsOnCommandResponseScanner::StaticClass(), "ISON %s", *NickList );
 }
 
 
@@ -2174,10 +2174,10 @@ bool UKIRCClient::Quit( const FString& Message )
 	bool bSuccess = false;
 
 	if ( Message.Len() == 0 )
-		bSuccess = Cmd( "QUIT" );
+		bSuccess = KIRCCmd( "QUIT" );
 
 	else
-		bSuccess = Cmd( "QUIT :%s", *Message.Left( UKIRCServer::MaxCommandLength - 6 ) );
+		bSuccess = KIRCCmdArgs( "QUIT :%s", *Message.Left( UKIRCServer::MaxCommandLength - 6 ) );
 
 	return bSuccess && Server->Disconnect();
 }

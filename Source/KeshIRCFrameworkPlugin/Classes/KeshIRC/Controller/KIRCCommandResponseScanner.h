@@ -53,13 +53,13 @@ public:
 	const FString& GetCommand() const { return Command; }
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
-	void SetCommand( const FString& Command ) { this->Command = Command; }
+	void SetCommand( const FString& NewCommand ) { Command = NewCommand; }
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
 	const FString& GetTarget() const { return Target; }
 
 	UFUNCTION( Category = "KeshIRC|Controller|Command Response Scanner", BlueprintCallable )
-	void SetTarget( const FString& Target ) { this->Target = Target; }
+	void SetTarget( const FString& NewTarget ) { Target = NewTarget; }
 
 	UFUNCTION()
 	void CommandCallback( UKIRCUser* const Source, const FString& Command, const TArray<FString>& Params, const FString& Message );

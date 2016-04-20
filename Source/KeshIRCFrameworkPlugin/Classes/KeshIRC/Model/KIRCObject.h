@@ -34,8 +34,8 @@ protected:
 	UKIRCObject( const class FObjectInitializer& ObjectInitializer );
 
 	// Called when first created to init the user
-	virtual void InitObject( const FString& Name );
+	virtual void InitObject( const FString& ObjectName );
 
-	virtual void SetName( const FString& Name ) { this->Name = Name; }
+	virtual void SetName( const FString& ObjectName ) { Name = ObjectName; }
 
 };
