@@ -227,22 +227,6 @@ protected:
 
 	friend class UKIRCClient;
 
-	class FKIRCServerTicker : public FTickableGameObject
-	{		
-		UKIRCServer* Server;
-
-	public:
-
-		FKIRCServerTicker( UKIRCServer* InServer ) { Server = InServer; }
-		virtual bool IsTickableWhenPaused() const override { return true; }
-		virtual bool IsTickableInEditor() const override { return true; }
-		virtual bool IsTickable() const override { return Server != NULL; }
-		virtual void Tick( float DeltaTime ) { Server->Tick(); }
-		virtual TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT( FKIRCServerTicker, STATGROUP_Tickables ); }
-
-	};
-
-
 	UPROPERTY( Category = "KeshIRC|Model|Server", VisibleInstanceOnly )
 	FString Name; 
 
@@ -285,7 +269,7 @@ protected:
 	UPROPERTY()
 	TMap<FString, FString> Settings;
 
-	FKIRCServerTicker* Ticker;
+	FDelegateHandle dgCoreTickerDelegate;
 	FResolveInfo* HostResolver;
 	TSharedPtr<FInternetAddr> HostAddr;
 	FSocket* Socket;
@@ -307,6 +291,7 @@ protected:
 	
 	virtual void SetState( EKIRCServerState NewState ) { State = NewState; }
 
+	virtual bool CoreTick( float DeltaSeconds );
 	virtual void Tick();
 
 	const UKIRCMode* const AddUserMode( const FString& ModeCharacter );

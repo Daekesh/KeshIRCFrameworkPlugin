@@ -26,7 +26,6 @@ UKIRCServer::UKIRCServer( const class FObjectInitializer& ObjectInitializer )
 	State = EKIRCServerState::S_Disconnected;
 	HostResolver = NULL;
 	HostAddr.Reset();
-	Ticker = NULL;
 	Socket = NULL;
 	ReadBuffer = NULL;
 	Channels.Empty();
@@ -38,8 +37,11 @@ UKIRCServer::UKIRCServer( const class FObjectInitializer& ObjectInitializer )
 
 UKIRCServer::~UKIRCServer()
 {
-	if ( Ticker != NULL )
-		delete Ticker;
+	if ( dgCoreTickerDelegate.IsValid() )
+	{
+		FTicker::GetCoreTicker().RemoveTicker( dgCoreTickerDelegate );
+		dgCoreTickerDelegate.Reset();
+	}
 
 	if ( Socket != NULL )
 	{
@@ -68,10 +70,10 @@ bool UKIRCServer::InitServer( const FString& ServerName, const FString& Host, in
 	this->Port = Port;
 	this->Password = Password;
 
-	if ( Ticker != NULL )
+	if ( dgCoreTickerDelegate.IsValid() )
 	{
-		delete Ticker;
-		KIRCLog( Warning, "Ticker still alive for some reason?" );
+		FTicker::GetCoreTicker().RemoveTicker( dgCoreTickerDelegate );
+		dgCoreTickerDelegate.Reset();
 	}
 
 	ISocketSubsystem* SocketSub = ISocketSubsystem::Get( PLATFORM_SOCKETSUBSYSTEM );
@@ -86,7 +88,8 @@ bool UKIRCServer::InitServer( const FString& ServerName, const FString& Host, in
 	HostAddr->SetIp( 0 );
 	HostAddr->SetPort( Port );
 	HostResolver = SocketSub->GetHostByName( TCHAR_TO_ANSI( *Host ) );
-	Ticker = new FKIRCServerTicker( this );
+
+	dgCoreTickerDelegate = FTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateUObject( this, &UKIRCServer::CoreTick ) );
 	
 	return true;
 }
@@ -124,6 +127,9 @@ void UKIRCServer::Reset()
 
 bool UKIRCServer::Connect()
 {
+	if ( State != EKIRCServerState::S_Disconnected )
+		this->Disconnect();
+
 	KIRCLog( Log, "Connection initiated." );
 	// Create socket
 	ISocketSubsystem* SocketSub = ISocketSubsystem::Get( PLATFORM_SOCKETSUBSYSTEM );
@@ -544,6 +550,13 @@ const UKIRCMode* const UKIRCServer::AddChannelMode( const FString& ModeCharacter
 	}
 
 	return NewMode;
+}
+
+
+bool UKIRCServer::CoreTick( float DeltaSeconds )
+{
+	this->Tick();
+	return true;
 }
 
 
